@@ -14,9 +14,37 @@ cargo check -p bevy_game --target wasm32-unknown-unknown   # matches GH Pages de
 cargo check -p mobile
 ```
 
-`bevy-lint` is installed but currently broken in this sandbox
-(`librustc_driver-*.so: cannot open shared object file`) — don't rely on it,
-use `cargo clippy` instead.
+### `bevy_lint` (custom Bevy-aware linter)
+
+The binary is `bevy_lint` (not `bevy-lint`). It requires the exact nightly
+toolchain pinned in `bevy_cli`'s `rust-toolchain.toml`
+(`~/.cargo/git/checkouts/bevy_cli-*/*/rust-toolchain.toml`, currently
+`nightly-2026-01-22`) because it links against that toolchain's private
+`librustc_driver*.so` — calling the raw `~/.cargo/bin/bevy_lint` binary
+under the default `stable` toolchain fails with
+`error while loading shared libraries: librustc_driver-*.so: cannot open
+shared object file`. Fix: invoke it through `rustup run <that nightly>
+bevy_lint`, which puts the matching driver `.so` on `LD_LIBRARY_PATH`
+automatically.
+
+That still isn't enough on its own here: this pinned nightly (~Jan 2026)
+predates stabilization of the `cfg_select!` macro that `bevy_app` 0.19 now
+uses internally, so every run fails with
+`error[E0658]: use of unstable library feature 'cfg_select'` inside
+`bevy_app`'s vendored source (not our code) unless the feature is enabled.
+Workaround — inject the crate attribute into every crate being built via
+`RUSTFLAGS`, and allow unstable flags on the pinned nightly via
+`RUSTC_BOOTSTRAP=1`:
+
+```
+RUSTC_BOOTSTRAP=1 RUSTFLAGS="-Zcrate-attr=feature(cfg_select)" \
+  rustup run nightly-2026-01-22 bevy_lint --all-targets
+```
+
+This currently exits 0 with no warnings for `bevy_game`. `cargo clippy -D
+warnings` (no special setup needed) remains the primary/fast lint gate;
+`bevy_lint` catches Bevy-specific ECS antipatterns clippy doesn't know
+about, so re-run it after larger gameplay changes too.
 
 ## Running it locally / smoke-testing headlessly
 
