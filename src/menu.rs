@@ -1,31 +1,18 @@
 use crate::GameState;
 use crate::loading::TextureAssets;
+use crate::ui::{ButtonColors, ChangeState, OpenLink};
 use bevy::prelude::*;
 
 pub struct MenuPlugin;
 
-/// This plugin is responsible for the game menu (containing only one button...)
-/// The menu is only drawn during the State `GameState::Menu` and is removed when that state is exited
+/// This plugin is responsible for the main menu (containing only one button...).
+/// The menu is drawn on entering `GameState::Menu` and removed when that state
+/// is exited. Button click/hover behavior itself is handled generically by
+/// [`crate::ui::UiPlugin`]; this plugin only spawns/despawns the menu's UI tree.
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Menu), setup_menu)
-            .add_systems(Update, click_play_button.run_if(in_state(GameState::Menu)))
             .add_systems(OnExit(GameState::Menu), cleanup_menu);
-    }
-}
-
-#[derive(Component)]
-struct ButtonColors {
-    normal: Color,
-    hovered: Color,
-}
-
-impl Default for ButtonColors {
-    fn default() -> Self {
-        ButtonColors {
-            normal: Color::linear_rgb(0.15, 0.15, 0.15),
-            hovered: Color::linear_rgb(0.25, 0.25, 0.25),
-        }
     }
 }
 
@@ -34,7 +21,6 @@ struct Menu;
 
 fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
     info!("menu");
-    commands.spawn((Camera2d, Msaa::Off));
     commands
         .spawn((
             Node {
@@ -162,46 +148,7 @@ fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
         });
 }
 
-#[derive(Component)]
-struct ChangeState(GameState);
-
-#[derive(Component)]
-struct OpenLink(&'static str);
-
-fn click_play_button(
-    mut next_state: ResMut<NextState<GameState>>,
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &ButtonColors,
-            Option<&ChangeState>,
-            Option<&OpenLink>,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, mut color, button_colors, change_state, open_link) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                if let Some(state) = change_state {
-                    next_state.set(state.0.clone());
-                } else if let Some(link) = open_link
-                    && let Err(error) = webbrowser::open(link.0)
-                {
-                    warn!("Failed to open link {error:?}");
-                }
-            }
-            Interaction::Hovered => {
-                *color = button_colors.hovered.into();
-            }
-            Interaction::None => {
-                *color = button_colors.normal.into();
-            }
-        }
-    }
-}
-
+/// Despawns every entity spawned by [`setup_menu`] when leaving `GameState::Menu`.
 fn cleanup_menu(mut commands: Commands, menu: Query<Entity, With<Menu>>) {
     for entity in menu.iter() {
         commands.entity(entity).despawn();

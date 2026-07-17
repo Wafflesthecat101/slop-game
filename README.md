@@ -7,6 +7,20 @@ A Bevy game project, scaffolded from [NiklasEi/bevy_game_template][template-repo
 - **Root** (`Cargo.toml`, `src/`, `assets/`, `mobile/`, `.github/workflows/`, ...) — the Bevy game itself, plus all the template's CI/CD, exactly as scaffolded from the template (see [`credits/CREDITS.md`](credits/CREDITS.md)/[License](#license) below), only re-branded (title, links, package ids) for this repo.
 - [`blender_landscape/`](blender_landscape) — a separate, standalone asset: a procedurally generated Blender landscape (script + `.blend` + rendered PNG), unrelated to the Bevy build.
 
+## Gameplay
+
+The game itself is **Bevy Catcher**: a 45-second arcade round where you steer
+the Bevy logo around the screen (arrow keys / WASD / touch drag) to catch
+falling coins before time runs out. Coins fall faster and spawn more often
+the higher your score climbs, so the round gets progressively more frantic.
+When the timer hits zero you'll see your final score with the option to
+play again or head back to the main menu.
+
+Gameplay logic lives in [`src/game.rs`](src/game.rs) (scoring, round timer,
+collectible spawning/collision — all independent of rendering and covered
+by unit tests), with the HUD ([`src/hud.rs`](src/hud.rs)) and game-over
+screen ([`src/game_over.rs`](src/game_over.rs)) built on top of it.
+
 ## Deploying to GitHub Pages (WASM)
 
 This is already wired up via [`.github/workflows/deploy-page.yaml`](.github/workflows/deploy-page.yaml):

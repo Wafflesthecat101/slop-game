@@ -8,12 +8,19 @@ pub struct PlayerPlugin;
 #[derive(Component)]
 pub struct Player;
 
-/// This plugin handles player related stuff like movement
-/// Player logic is only active during the State `GameState::Playing`
+/// This plugin handles player related stuff like movement.
+/// Player logic is only active during the State `GameState::Playing`.
+///
+/// The player entity is despawned again `OnExit(Playing)` rather than left
+/// alive: once the game gained a `Playing -> GameOver -> Playing` loop (see
+/// [`crate::game_over`]), leaving the old player around would mean
+/// [`spawn_player`] creates a second, third, ... player sprite every time a
+/// new round starts.
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Playing), spawn_player)
-            .add_systems(Update, move_player.run_if(in_state(GameState::Playing)));
+            .add_systems(Update, move_player.run_if(in_state(GameState::Playing)))
+            .add_systems(OnExit(GameState::Playing), despawn_player);
     }
 }
 
@@ -41,5 +48,13 @@ fn move_player(
     );
     for mut player_transform in &mut player_query {
         player_transform.translation += movement;
+    }
+}
+
+/// Despawns the player sprite when leaving `GameState::Playing`. See the
+/// [`PlayerPlugin`] docs for why this is necessary.
+fn despawn_player(mut commands: Commands, player: Query<Entity, With<Player>>) {
+    for entity in &player {
+        commands.entity(entity).despawn();
     }
 }
