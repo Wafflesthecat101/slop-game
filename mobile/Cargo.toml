@@ -13,7 +13,7 @@ bevy_game = { path = ".." }
 bevy = { version = "0.19", default-features = false, features = ["android-native-activity"] }
 
 [target."cfg(target_os = \"ios\")".dependencies]
-objc2-avf-audio = { version = "0.3.0", features = [
+objc2-avf-audio = { version = "0.3.2", features = [
     "AVAudioSession",
     "AVAudioSessionTypes",
 ] }

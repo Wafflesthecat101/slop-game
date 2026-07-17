@@ -60,7 +60,9 @@ bevy = { version = "0.19.0", default-features = false, features = [
 ] }
 bevy_kira_audio = { version = "0.26" }
 bevy_asset_loader = { version = "0.27.0" }
-rand = { version = "0.9" }
+# Kept in sync with the `rand` version Bevy itself pulls in (see `bevy_math`)
+# to avoid compiling two incompatible major versions of the crate.
+rand = { version = "0.10" }
 webbrowser = { version = "1", features = ["hardened"] }
 
 # keep the following in sync with Bevy's dependencies
@@ -70,9 +72,10 @@ image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 
 # Required to make `rand`/`getrandom` work on wasm.
-# Backend is selected via `.cargo/config.toml` rustflags for the wasm32-unknown-unknown target.
+# getrandom 0.4 selects its wasm backend purely via the `wasm_js` feature
+# (no `--cfg getrandom_backend=...` rustflag needed, unlike 0.3).
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [build-dependencies]
-embed-resource = "1"
+embed-resource = "3"
