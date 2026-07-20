@@ -12,7 +12,7 @@ use bevy::camera::Hdr;
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
-use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
+use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow, WindowFocused};
 
 const EYE_HEIGHT: f32 = 1.8;
 const WALK_SPEED: f32 = 12.0;
@@ -32,13 +32,34 @@ const FOV_WALK: f32 = 1.20;
 const FOV_RUN: f32 = 1.40;
 const FOV_LERP: f32 = 8.0;
 
+/// Horizontal radius of the player's body, used for collision push-out.
+const PLAYER_RADIUS: f32 = 0.5;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (spawn_player, grab_cursor))
-            .add_systems(Update, (mouse_look, move_player, sprint_fov, toggle_cursor));
+            .add_systems(
+                Update,
+                (
+                    mouse_look,
+                    move_player,
+                    sprint_fov,
+                    grab_on_click,
+                    release_cursor,
+                ),
+            );
     }
+}
+
+/// A cylindrical (horizontal-circle) obstacle the player cannot walk through.
+/// Attached to trees, rocks and beacon pillars; the player is pushed out of
+/// any it overlaps. Kept trivially simple — no physics engine, just circles.
+#[derive(Component)]
+pub struct Collider {
+    /// Horizontal radius in metres.
+    pub radius: f32,
 }
 
 #[derive(Component)]
@@ -95,20 +116,36 @@ fn grab_cursor(mut cursor: Single<&mut CursorOptions, With<PrimaryWindow>>) {
     cursor.grab_mode = CursorGrabMode::Locked;
 }
 
-/// Press Escape to release the mouse cursor (so the window can be closed /
-/// the OS regained), click to re-grab it.
-fn toggle_cursor(
-    keys: Res<ButtonInput<KeyCode>>,
+/// Re-grab the mouse when the player clicks inside the window (a user gesture,
+/// which browsers require to enter pointer lock).
+fn grab_on_click(
     mouse: Res<ButtonInput<MouseButton>>,
     mut cursor: Single<&mut CursorOptions, With<PrimaryWindow>>,
 ) {
-    if keys.just_pressed(KeyCode::Escape) {
-        cursor.visible = true;
-        cursor.grab_mode = CursorGrabMode::None;
-    }
-    if mouse.just_pressed(MouseButton::Left) {
+    if mouse.just_pressed(MouseButton::Left) && cursor.grab_mode == CursorGrabMode::None {
         cursor.visible = false;
         cursor.grab_mode = CursorGrabMode::Locked;
+    }
+}
+
+/// Release the mouse cursor. Freeing must happen for two independent reasons,
+/// and handling both here is what makes a *single* Escape reliably work:
+///
+/// * Escape pressed (native, and web when the key reaches us).
+/// * The window loses focus. On the web the browser exits pointer lock on the
+///   first Escape *itself* and usually swallows that key event, so we would
+///   otherwise never see it and our state would stay `Locked` (which is what
+///   made it take a second press). The focus-lost event fires in that case, so
+///   we sync our state to reality and stop trying to re-lock.
+fn release_cursor(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut focus: MessageReader<WindowFocused>,
+    mut cursor: Single<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    let lost_focus = focus.read().any(|e| !e.focused);
+    if keys.just_pressed(KeyCode::Escape) || lost_focus {
+        cursor.visible = true;
+        cursor.grab_mode = CursorGrabMode::None;
     }
 }
 
@@ -130,6 +167,7 @@ fn move_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mut player: Single<(&mut Player, &mut Transform)>,
+    colliders: Query<(&Transform, &Collider), Without<Player>>,
 ) {
     let dt = time.delta_secs();
     let (player, transform) = &mut *player;
@@ -168,6 +206,34 @@ fn move_player(
     let t = (ACCEL * dt).min(1.0);
     player.velocity = player.velocity.lerp(target, t);
     transform.translation += player.velocity * dt;
+
+    // Horizontal collision: push the player out of any obstacle circle it now
+    // overlaps, and cancel the velocity component pointing into it so movement
+    // slides along the surface instead of sticking or tunnelling through.
+    let mut here = Vec2::new(transform.translation.x, transform.translation.z);
+    for (obstacle, collider) in &colliders {
+        let center = Vec2::new(obstacle.translation.x, obstacle.translation.z);
+        let min_dist = collider.radius + PLAYER_RADIUS;
+        let offset = here - center;
+        let dist = offset.length();
+        if dist < min_dist {
+            let push = if dist > 1e-4 {
+                offset / dist
+            } else {
+                Vec2::X // Degenerate exact-overlap: pick an arbitrary direction.
+            };
+            here = center + push * min_dist;
+            let vel = Vec2::new(player.velocity.x, player.velocity.z);
+            let into = vel.dot(push);
+            if into < 0.0 {
+                let slide = vel - push * into;
+                player.velocity.x = slide.x;
+                player.velocity.z = slide.y;
+            }
+        }
+    }
+    transform.translation.x = here.x;
+    transform.translation.z = here.y;
 
     // Gravity + jump against the terrain surface.
     let ground = terrain::height(transform.translation.x, transform.translation.z) + EYE_HEIGHT;

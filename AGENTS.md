@@ -208,6 +208,20 @@ and then simulated every `Update`. Key conventions:
   buffered events to *messages*: `#[derive(Message)]`, `add_message`,
   `MessageWriter`/`MessageReader`). The HUD reads `Score` + the message for the
   objective counter and its collect flash.
+- **Collision is circle push-out, no physics engine.** Trees, rocks and beacon
+  pillars carry a `player::Collider { radius }`; each frame `move_player` (in
+  `player.rs`) queries all colliders and, for any whose horizontal circle the
+  player overlaps, snaps the player to the circle edge and cancels the
+  inward velocity component (so you slide along obstacles). The collider query
+  is filtered `Without<Player>` so it stays disjoint from the player's `&mut
+  Transform`. Because colliders are plain components, a collected beacon's
+  collider disappears when its entity despawns — no separate bookkeeping.
+- **Cursor grab/release is split across two systems** (`grab_on_click`,
+  `release_cursor`). Release triggers on Escape *or* window-focus-loss: on the
+  web the browser exits pointer lock on the first Escape itself and often
+  swallows that key event, so relying on the key alone made release take two
+  presses; reacting to the `WindowFocused` message too keeps our
+  `CursorOptions` in sync with the browser and fixes the single-press release.
 - **Cursor grab is a component in Bevy 0.19**, not a `Window` field: query
   `Single<&mut CursorOptions, With<PrimaryWindow>>` to lock/hide it.
 - **Ground/object textures are procedurally generated 512x512 seamless PNGs**

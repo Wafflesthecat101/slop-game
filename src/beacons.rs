@@ -10,6 +10,7 @@
 //! material cloned across every beacon, a seeded RNG for deterministic
 //! placement on hilltops, and two small systems (animate, collect).
 
+use crate::player::Collider;
 use crate::terrain::{self, HALF_SIZE};
 use bevy::prelude::*;
 use rand::rngs::StdRng;
@@ -94,6 +95,9 @@ fn spawn_beacons(
                 Visibility::default(),
                 Mesh3d(pillar_mesh.clone()),
                 MeshMaterial3d(pillar_mat.clone()),
+                // Solid pillar you must walk around; despawning on collect
+                // removes the collider with it.
+                Collider { radius: 0.6 },
             ))
             .with_children(|beacon| {
                 // Orb floats above the pillar top; child transform is local.

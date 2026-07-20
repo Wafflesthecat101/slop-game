@@ -22,7 +22,8 @@ floating orbs that you can spot from across the map and navigate toward.
 - **Space** — jump
 - **Esc** — release the mouse cursor (click to re-grab)
 
-Walk close to a beacon to collect it; the objective counter (top-left) ticks up
+Trees, rocks and beacon pillars are solid — you walk around them, not through
+them. Walk close to a beacon to collect it; the objective counter (top-left) ticks up
 and flashes, and announces victory once you've found them all. There's no
 timer — it's a calm, curiosity-driven world to explore.
 

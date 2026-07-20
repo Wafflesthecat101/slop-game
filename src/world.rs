@@ -6,6 +6,7 @@
 //! and materials are cloned by handle, so thousands of objects cost only a
 //! handful of GPU resources.
 
+use crate::player::Collider;
 use crate::terrain::{self, HALF_SIZE};
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
@@ -206,6 +207,11 @@ fn scatter_scenery(
                 MeshMaterial3d(rock.clone()),
                 Transform::from_translation(Vec3::new(x, y + scale * 0.4, z))
                     .with_scale(Vec3::splat(scale)),
+                // Rock mesh is a unit sphere, so its world radius is `scale`;
+                // 0.7 keeps the walkable edge close to the visible surface.
+                Collider {
+                    radius: scale * 0.7,
+                },
             ));
         }
     }
@@ -228,6 +234,8 @@ fn spawn_tree(
         MeshMaterial3d(bark.clone()),
         Transform::from_translation(base + Vec3::Y * trunk_h * 0.5)
             .with_scale(Vec3::new(1.0, trunk_h, 1.0)),
+        // Block the trunk footprint; the overhead canopy needs no collider.
+        Collider { radius: 0.6 },
     ));
     commands.spawn((
         Mesh3d(canopy_mesh.clone()),
