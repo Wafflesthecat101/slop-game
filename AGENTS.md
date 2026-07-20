@@ -168,3 +168,21 @@ conventions established when the gameplay loop was added:
 - Shared button widgets (`ButtonColors`, `ChangeState`, `OpenLink`) live in
   `src/ui.rs` and are used by both `menu.rs` and `game_over.rs` — add new
   screens' buttons there rather than re-implementing hover/click handling.
+
+## Git workflow — direct pushes to `main` are pre-authorized
+
+The maintainer has granted standing permission for the agent to commit and
+push directly to the `main` branch of this repository (`origin` →
+`github.com/Wafflesthecat101/slop-game.git`) without opening a pull request or
+asking for per-push confirmation.
+
+This authorization applies **only to this repository**.
+
+Guardrails that still apply:
+1. Run the project's build/test/lint (see "Build/test/lint commands" above)
+   before pushing.
+2. Write clear, descriptive commit messages.
+3. Never force-push or rewrite already-published history on `main` without
+   explicit approval from the maintainer.
+4. Server-side branch protection (if any) still governs whether a push is
+   accepted; this note does not override GitHub's own rules.
