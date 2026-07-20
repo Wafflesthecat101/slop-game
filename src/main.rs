@@ -13,12 +13,11 @@ use winit::window::Icon;
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::linear_rgb(0.4, 0.4, 0.4)))
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Slop Game".to_string(),
+                        title: "Open World".to_string(),
                         // Bind to canvas included in `index.html`
                         canvas: Some("#bevy".to_owned()),
                         fit_canvas_to_parent: true,

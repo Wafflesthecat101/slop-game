@@ -9,17 +9,25 @@ A Bevy game project, scaffolded from [NiklasEi/bevy_game_template][template-repo
 
 ## Gameplay
 
-The game itself is **Bevy Catcher**: a 45-second arcade round where you steer
-the Bevy logo around the screen (arrow keys / WASD / touch drag) to catch
-falling coins before time runs out. Coins fall faster and spawn more often
-the higher your score climbs, so the round gets progressively more frantic.
-When the timer hits zero you'll see your final score with the option to
-play again or head back to the main menu.
+The game is a **3D open-world walking simulator**. You spawn into a large,
+procedurally generated landscape of rolling hills scattered with textured
+trees and rocks, and explore it freely in first person:
 
-Gameplay logic lives in [`src/game.rs`](src/game.rs) (scoring, round timer,
-collectible spawning/collision â€” all independent of rendering and covered
-by unit tests), with the HUD ([`src/hud.rs`](src/hud.rs)) and game-over
-screen ([`src/game_over.rs`](src/game_over.rs)) built on top of it.
+- **Mouse** — look around
+- **WASD** — walk
+- **Shift** — sprint
+- **Space** — jump
+- **Esc** — release the mouse cursor (click to re-grab)
+
+There is no score or timer — it's a calm, freely explorable world.
+
+The world (terrain mesh, sky/lighting, scattered scenery) is built in
+[`src/world.rs`](src/world.rs); the first-person controller lives in
+[`src/player.rs`](src/player.rs); the terrain shape is a single pure function
+shared by both in [`src/terrain.rs`](src/terrain.rs); and a minimal
+crosshair/controls HUD is in [`src/hud.rs`](src/hud.rs). The ground and object
+textures in [`assets/textures/`](assets/textures) are procedurally generated,
+seamless, tileable 512x512 PNGs.
 
 ## Deploying to GitHub Pages (WASM)
 
@@ -34,7 +42,7 @@ Re-run the workflow any time to publish a newer version. `.github/workflows/ci.y
 
 ## Bevy version
 
-Bumped to Bevy **0.19.0** (with matching `bevy_kira_audio` 0.26 / `bevy_asset_loader` 0.27) â€” the latest stable release at the time of writing â€” from the template's pinned 0.18.0.
+Runs on Bevy **0.19.0** (originally bumped from the template's pinned 0.18.0). The 3D rewrite trimmed the dependency set to what a 3D game needs — Bevy's 3D/UI render features plus `rand` for procedural scattering — and dropped the arcade game's `bevy_kira_audio`, `bevy_asset_loader`, and `webbrowser` deps.
 
 ## Original template README
 
