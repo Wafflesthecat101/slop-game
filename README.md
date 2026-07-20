@@ -9,23 +9,31 @@ A Bevy game project, scaffolded from [NiklasEi/bevy_game_template][template-repo
 
 ## Gameplay
 
-The game is a **3D open-world walking simulator**. You spawn into a large,
-procedurally generated landscape of rolling hills scattered with textured
-trees and rocks, and explore it freely in first person:
+The game is a **3D open-world exploration game**. You spawn into a large,
+procedurally generated landscape of rolling hills — sandy lowlands, green
+midlands and rocky highlands — scattered with textured trees and rocks, and
+wrapped in atmospheric distance fog under a warm, low sun. Your goal is to find
+and collect all the glowing **beacons**: tall pillars topped with bright,
+floating orbs that you can spot from across the map and navigate toward.
 
 - **Mouse** — look around
-- **WASD** — walk
-- **Shift** — sprint
+- **WASD** — walk (with weighty acceleration and subtle head-bob)
+- **Shift** — sprint (widens the field of view for a sense of speed)
 - **Space** — jump
 - **Esc** — release the mouse cursor (click to re-grab)
 
-There is no score or timer — it's a calm, freely explorable world.
+Walk close to a beacon to collect it; the objective counter (top-left) ticks up
+and flashes, and announces victory once you've found them all. There's no
+timer — it's a calm, curiosity-driven world to explore.
 
 The world (terrain mesh, sky/lighting, scattered scenery) is built in
-[`src/world.rs`](src/world.rs); the first-person controller lives in
-[`src/player.rs`](src/player.rs); the terrain shape is a single pure function
-shared by both in [`src/terrain.rs`](src/terrain.rs); and a minimal
-crosshair/controls HUD is in [`src/hud.rs`](src/hud.rs). The ground and object
+[`src/world.rs`](src/world.rs); the first-person controller with game-feel
+touches (acceleration, head-bob, sprint FOV) lives in
+[`src/player.rs`](src/player.rs); the collectible beacon landmarks and the
+objective/score loop are in [`src/beacons.rs`](src/beacons.rs); the terrain
+shape and biome colouring are a single set of pure functions shared across the
+game in [`src/terrain.rs`](src/terrain.rs); and the crosshair, controls hint
+and objective counter are in [`src/hud.rs`](src/hud.rs). The ground and object
 textures in [`assets/textures/`](assets/textures) are procedurally generated,
 seamless, tileable 512x512 PNGs.
 

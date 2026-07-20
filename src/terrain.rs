@@ -35,6 +35,38 @@ pub fn normal(x: f32, z: f32) -> bevy::math::Vec3 {
     Vec3::new(-dx, 2.0 * e, -dz).normalize()
 }
 
+/// Biome tint (linear RGB multiplier, 0..1) for the ground at elevation `y`.
+///
+/// Elevation drives a simple three-band biome: sandy lowlands near sea level,
+/// lush green midlands, and pale rocky highlands. Returned as an RGB factor
+/// that multiplies the grass base texture, giving the single terrain mesh a
+/// varied, less monotonous look for free (no extra draw calls). Bands are
+/// blended with `smoothstep` so there are no hard seams.
+pub fn biome_tint(y: f32) -> [f32; 3] {
+    let sand = [0.82, 0.72, 0.48];
+    let grass = [0.45, 0.62, 0.30];
+    let rock = [0.62, 0.60, 0.58];
+
+    // Low -> sand..grass, high -> grass..rock.
+    let to_grass = smoothstep(-6.0, 2.0, y);
+    let to_rock = smoothstep(8.0, 18.0, y);
+    let low = mix3(sand, grass, to_grass);
+    mix3(low, rock, to_rock)
+}
+
+fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+fn mix3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+    [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,5 +97,17 @@ mod tests {
         // On terrain of modest slope the surface normal must have a dominant
         // upward (+Y) component.
         assert!(normal(10.0, 10.0).y > 0.5);
+    }
+
+    #[test]
+    fn biome_tint_bands_are_ordered_and_bounded() {
+        // Low ground is sandy (red dominant), high ground trends grey/rock.
+        let low = biome_tint(-20.0);
+        let high = biome_tint(30.0);
+        for c in low.iter().chain(high.iter()) {
+            assert!((0.0..=1.0).contains(c));
+        }
+        // Lowlands are noticeably warmer (more red) than the rocky highlands.
+        assert!(low[0] > high[0] - 0.01);
     }
 }

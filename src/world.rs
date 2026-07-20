@@ -24,10 +24,12 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(ClearColor(Color::srgb(0.55, 0.75, 0.95)))
+        // Sky/horizon colour, reused for the distance fog on the camera so the
+        // world dissolves seamlessly into the sky at the far plane.
+        app.insert_resource(ClearColor(SKY_COLOR))
             .insert_resource(GlobalAmbientLight {
-                color: Color::srgb(0.8, 0.85, 1.0),
-                brightness: 350.0,
+                color: Color::srgb(0.75, 0.8, 0.95),
+                brightness: 280.0,
                 ..default()
             })
             .add_systems(
@@ -36,6 +38,9 @@ impl Plugin for WorldPlugin {
             );
     }
 }
+
+/// Warm late-afternoon sky colour, shared by the clear colour and the fog.
+pub const SKY_COLOR: Color = Color::srgb(0.70, 0.80, 0.92);
 
 /// A textured [`StandardMaterial`] that tiles its base-color image `tiling`
 /// times across the terrain UV range.
@@ -51,15 +56,34 @@ fn textured(
     })
 }
 
+/// Like [`textured`] for the leaves image but multiplied by `tint`, so several
+/// canopy colours can share the single leaves texture.
+fn tinted_leaves(
+    assets: &AssetServer,
+    materials: &mut Assets<StandardMaterial>,
+    tint: Color,
+) -> Handle<StandardMaterial> {
+    materials.add(StandardMaterial {
+        base_color: tint,
+        base_color_texture: Some(assets.load("textures/leaves.png")),
+        perceptual_roughness: 0.95,
+        ..default()
+    })
+}
+
 fn setup_sky_and_light(mut commands: Commands) {
-    // A single directional "sun" with shadows is all an open world needs.
+    // A single warm, low directional "sun" (golden-hour angle) with shadows —
+    // low sun angle gives long, readable shadows and a warmer, moodier scene
+    // than a flat overhead light. `directional_light_color` on the fog below
+    // then tints the haze toward the sun for atmospheric depth.
     commands.spawn((
         DirectionalLight {
-            illuminance: 12_000.0,
+            color: Color::srgb(1.0, 0.93, 0.78),
+            illuminance: 11_000.0,
             shadow_maps_enabled: true,
             ..default()
         },
-        Transform::from_xyz(60.0, 120.0, 40.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(80.0, 55.0, 30.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
 
@@ -85,16 +109,22 @@ fn build_terrain_mesh() -> Mesh {
     let mut positions = Vec::with_capacity(verts_per_side * verts_per_side);
     let mut normals = Vec::with_capacity(verts_per_side * verts_per_side);
     let mut uvs = Vec::with_capacity(verts_per_side * verts_per_side);
+    let mut colors = Vec::with_capacity(verts_per_side * verts_per_side);
 
     for iz in 0..verts_per_side {
         for ix in 0..verts_per_side {
             let x = -HALF_SIZE + ix as f32 * step;
             let z = -HALF_SIZE + iz as f32 * step;
-            positions.push([x, terrain::height(x, z), z]);
+            let y = terrain::height(x, z);
+            positions.push([x, y, z]);
             normals.push(terrain::normal(x, z).to_array());
             let u = ix as f32 / GRID as f32 * GROUND_TILING;
             let v = iz as f32 / GRID as f32 * GROUND_TILING;
             uvs.push([u, v]);
+            // Per-vertex biome tint (multiplies the grass texture) gives the
+            // single mesh sandy lowlands, green midlands and rocky highlands.
+            let [r, g, b] = terrain::biome_tint(y);
+            colors.push([r, g, b, 1.0]);
         }
     }
 
@@ -116,6 +146,7 @@ fn build_terrain_mesh() -> Mesh {
     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
     .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+    .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, colors)
     .with_inserted_indices(Indices::U32(indices))
 }
 
@@ -133,8 +164,16 @@ fn scatter_scenery(
     let rock_mesh = meshes.add(Sphere::new(1.0));
 
     let bark = textured(&assets, &mut materials, "textures/bark.png");
-    let leaves = textured(&assets, &mut materials, "textures/leaves.png");
     let rock = textured(&assets, &mut materials, "textures/rock.png");
+
+    // A small palette of leaf tints (multiplying the one leaves texture) gives
+    // the forest colour variety — deep green, olive, and autumnal — while
+    // still being just three shared materials.
+    let leaf_palette: [Handle<StandardMaterial>; 3] = [
+        tinted_leaves(&assets, &mut materials, Color::srgb(0.55, 0.75, 0.45)),
+        tinted_leaves(&assets, &mut materials, Color::srgb(0.70, 0.72, 0.38)),
+        tinted_leaves(&assets, &mut materials, Color::srgb(0.85, 0.62, 0.35)),
+    ];
 
     let mut rng = StdRng::seed_from_u64(20240720);
     let placeable = HALF_SIZE - 5.0;
@@ -150,12 +189,13 @@ fn scatter_scenery(
         }
 
         if rng.random_bool(0.8) {
+            let leaves = &leaf_palette[rng.random_range(0..leaf_palette.len())];
             spawn_tree(
                 &mut commands,
                 &trunk_mesh,
                 &canopy_mesh,
                 &bark,
-                &leaves,
+                leaves,
                 &mut rng,
                 Vec3::new(x, y, z),
             );

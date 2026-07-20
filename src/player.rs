@@ -7,7 +7,10 @@
 //! system a single, self-contained query.
 
 use crate::terrain;
+use crate::world::SKY_COLOR;
+use bevy::camera::Hdr;
 use bevy::input::mouse::AccumulatedMouseMotion;
+use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 
@@ -18,12 +21,23 @@ const GRAVITY: f32 = 24.0;
 const JUMP_SPEED: f32 = 9.0;
 const MOUSE_SENSITIVITY: f32 = 0.0022;
 
+/// How quickly horizontal velocity approaches the target (1/s). Higher = more
+/// responsive/snappy; lower = more floaty. Tuned for weighty-but-crisp feel.
+const ACCEL: f32 = 12.0;
+/// Head-bob amount (metres) and cadence (radians travelled per metre walked).
+const BOB_AMPLITUDE: f32 = 0.09;
+const BOB_FREQUENCY: f32 = 1.15;
+/// Field-of-view (radians) when walking vs. sprinting; the kick sells speed.
+const FOV_WALK: f32 = 1.20;
+const FOV_RUN: f32 = 1.40;
+const FOV_LERP: f32 = 8.0;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (spawn_player, grab_cursor))
-            .add_systems(Update, (mouse_look, move_player, toggle_cursor));
+            .add_systems(Update, (mouse_look, move_player, sprint_fov, toggle_cursor));
     }
 }
 
@@ -35,17 +49,43 @@ pub struct Player {
     pitch: f32,
     /// Current vertical velocity (m/s); negative is falling.
     vertical_velocity: f32,
+    /// Smoothed horizontal velocity (XZ, m/s) — gives movement weight/inertia
+    /// instead of instant start/stop.
+    velocity: Vec3,
+    /// Distance-walked accumulator driving the head-bob sine wave.
+    bob_phase: f32,
+    /// Whether the player is sprinting this frame (read by `sprint_fov`).
+    sprinting: bool,
 }
 
 fn spawn_player(mut commands: Commands) {
     let start = Vec3::new(0.0, terrain::height(0.0, 0.0) + EYE_HEIGHT, 0.0);
     commands.spawn((
         Camera3d::default(),
+        // HDR + bloom make the glowing beacon orbs (see `world.rs`) actually
+        // bloom, and give the scene a soft, filmic look.
+        Hdr,
+        Bloom::NATURAL,
+        // Distance fog coloured like the sky masks the terrain's hard edge at
+        // the far plane and adds aerial-perspective depth cues. Slightly
+        // sun-tinted haze in the sun direction for atmosphere.
+        DistanceFog {
+            color: SKY_COLOR,
+            directional_light_color: Color::srgb(1.0, 0.95, 0.85),
+            directional_light_exponent: 30.0,
+            falloff: FogFalloff::Linear {
+                start: 120.0,
+                end: 320.0,
+            },
+        },
         Transform::from_translation(start),
         Player {
             yaw: 0.0,
             pitch: 0.0,
             vertical_velocity: 0.0,
+            velocity: Vec3::ZERO,
+            bob_phase: 0.0,
+            sprinting: false,
         },
     ));
 }
@@ -114,12 +154,20 @@ fn move_player(
     if keys.pressed(KeyCode::KeyA) {
         wish -= right;
     }
-    let speed = if keys.pressed(KeyCode::ShiftLeft) {
+    player.sprinting = keys.pressed(KeyCode::ShiftLeft) && wish != Vec3::ZERO;
+    let speed = if player.sprinting {
         RUN_SPEED
     } else {
         WALK_SPEED
     };
-    transform.translation += wish.normalize_or_zero() * speed * dt;
+
+    // Ease the horizontal velocity toward the desired velocity instead of
+    // snapping to it — this is what gives movement weight (a short spin-up on
+    // start and a glide on release) without a physics engine.
+    let target = wish.normalize_or_zero() * speed;
+    let t = (ACCEL * dt).min(1.0);
+    player.velocity = player.velocity.lerp(target, t);
+    transform.translation += player.velocity * dt;
 
     // Gravity + jump against the terrain surface.
     let ground = terrain::height(transform.translation.x, transform.translation.z) + EYE_HEIGHT;
@@ -137,5 +185,30 @@ fn move_player(
     transform.translation.y += player.vertical_velocity * dt;
     if transform.translation.y < ground {
         transform.translation.y = ground;
+    }
+
+    // Head bob: advance a phase by distance actually travelled and add a small
+    // vertical sine offset while grounded. Because the offset is re-derived
+    // from `ground` every frame it never accumulates or drifts.
+    let ground_speed = player.velocity.length();
+    player.bob_phase += ground_speed * BOB_FREQUENCY * dt;
+    if grounded && player.vertical_velocity == 0.0 {
+        let bob = (player.bob_phase).sin() * BOB_AMPLITUDE * (ground_speed / WALK_SPEED).min(1.0);
+        transform.translation.y += bob;
+    }
+}
+
+/// Smoothly widens the camera FOV while sprinting and eases it back when
+/// walking — a classic, cheap "sense of speed" cue.
+fn sprint_fov(
+    time: Res<Time>,
+    player: Single<&Player>,
+    mut projection: Single<&mut Projection, With<Camera3d>>,
+) {
+    if let Projection::Perspective(persp) = projection.as_mut() {
+        let target = if player.sprinting { FOV_RUN } else { FOV_WALK };
+        persp.fov = persp
+            .fov
+            .lerp(target, (FOV_LERP * time.delta_secs()).min(1.0));
     }
 }

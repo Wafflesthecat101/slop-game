@@ -21,10 +21,12 @@ open world.
   Pages via `trunk`), and mobile (Android/iOS), all wired up through the
   template's GitHub Actions workflows in `.github/workflows/`.
 - **Gameplay code:** the world (terrain mesh, sky/lighting, scattered
-  scenery) lives in `src/world.rs`; the first-person player controller in
-  `src/player.rs`; the shared terrain heightfield in `src/terrain.rs`; and a
-  minimal crosshair/controls HUD in `src/hud.rs`. `GamePlugin` (`src/lib.rs`)
-  just composes those four small plugins.
+  scenery) lives in `src/world.rs`; the first-person player controller (with
+  acceleration, head-bob and sprint-FOV game feel) in `src/player.rs`; the
+  glowing collectible beacon landmarks and the objective/score loop in
+  `src/beacons.rs`; the shared terrain heightfield and biome colouring in
+  `src/terrain.rs`; and the crosshair/controls/objective HUD in `src/hud.rs`.
+  `GamePlugin` (`src/lib.rs`) just composes those five small plugins.
 - **Textures:** the six seamless, tileable ground/object textures in
   `assets/textures/` (`grass`, `dirt`, `rock`, `bark`, `leaves`, `sand`) were
   procedurally generated (512x512 PNGs).
@@ -163,7 +165,7 @@ unit tests + code review for state-transition logic instead.
 
 ## Architecture
 
-`GamePlugin` (`src/lib.rs`) composes four small, single-purpose plugins.
+`GamePlugin` (`src/lib.rs`) composes five small, single-purpose plugins.
 There is no game-state machine — the whole world is built once at `Startup`
 and then simulated every `Update`. Key conventions:
 
@@ -172,21 +174,40 @@ and then simulated every `Update`. Key conventions:
   Both the mesh builder (`world.rs`) and the player's ground-follow logic
   (`player.rs`) call it, so the visible ground and the surface the player
   walks on can never drift apart. `terrain::normal(x, z)` derives the slope
-  from it via finite differences. When changing the world's shape, edit only
-  `terrain.rs`; everything else follows automatically. These pure functions
-  carry `#[cfg(test)]` unit tests (height determinism/amplitude, normal
-  points up) so logic can be checked without spinning up a full
-  `App`/`World`.
+  from it via finite differences, and `terrain::biome_tint(y)` maps elevation
+  to a ground colour (sand → grass → rock). When changing the world's shape,
+  edit only `terrain.rs`; everything else follows automatically. These pure
+  functions carry `#[cfg(test)]` unit tests (height determinism/amplitude,
+  normal points up, biome bands ordered) so logic can be checked without
+  spinning up a full `App`/`World`.
 - **Scenery is cheap by construction.** `world.rs::scatter_scenery` shares one
-  mesh + one material handle per object kind (trunk, canopy, rock) and clones
-  the handles across ~600 placements, so the whole forest is a handful of GPU
-  resources. Placement uses a fixed-seed `StdRng` (world is identical every
-  run) and skips steep slopes via `terrain::normal(...).y`.
-- **All player state lives on one `Player` component** (yaw, pitch, vertical
-  velocity) so `move_player`/`mouse_look` are self-contained `Single<...>`
-  queries rather than juggling separate resources. Movement derives its
-  forward/right basis from Bevy's `Transform::forward()`/`right()` (flattened
-  to the XZ plane) rather than recomputing it from trig.
+  mesh per object kind (trunk, canopy, rock) and a tiny fixed palette of
+  materials (bark, rock, three tinted-leaves variants) cloned across ~600
+  placements, so the whole forest is a handful of GPU resources. Biome variety
+  on the terrain itself is free: per-vertex colours from `biome_tint` multiply
+  the one grass texture (no extra draw calls). Placement uses a fixed-seed
+  `StdRng` (world is identical every run) and skips steep slopes.
+- **Game feel is done without a physics engine.** `player.rs` eases horizontal
+  velocity toward the target (acceleration/inertia), adds a distance-driven
+  head-bob, and lerps the camera FOV up while sprinting. The head-bob offset is
+  re-derived from the terrain height every frame so it never drifts. All player
+  state lives on one `Player` component (yaw, pitch, vertical + horizontal
+  velocity, bob phase, sprinting) so the systems are self-contained
+  `Single<...>` queries. Movement derives its forward/right basis from Bevy's
+  `Transform::forward()`/`right()` (flattened to XZ) rather than trig.
+- **Atmosphere via built-ins.** The camera (`player.rs`) carries `Hdr` +
+  `Bloom` (from `bevy::post_process`) so emissive materials glow, and a
+  `DistanceFog` coloured like `world::SKY_COLOR` so the terrain edge dissolves
+  into the sky (depth cue + draw-distance mask). The sun is a single low,
+  warm `DirectionalLight` with shadows.
+- **The gameplay loop is the beacons.** `beacons.rs` places `BEACON_COUNT`
+  glowing pillar+orb landmarks on hilltops (deterministic rejection sampling),
+  animates the orbs (bob + spin + point light), and auto-collects them on
+  player proximity (horizontal distance only). Collection updates the `Score`
+  resource and fires a `BeaconCollected` **message** (Bevy 0.19 renamed
+  buffered events to *messages*: `#[derive(Message)]`, `add_message`,
+  `MessageWriter`/`MessageReader`). The HUD reads `Score` + the message for the
+  objective counter and its collect flash.
 - **Cursor grab is a component in Bevy 0.19**, not a `Window` field: query
   `Single<&mut CursorOptions, With<PrimaryWindow>>` to lock/hide it.
 - **Ground/object textures are procedurally generated 512x512 seamless PNGs**
