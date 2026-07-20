@@ -1,10 +1,16 @@
 name: deploy-github-page
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: deploy-github-page
+  cancel-in-progress: true
 
 jobs:
   build-web:
