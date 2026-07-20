@@ -1,7 +1,36 @@
 # AGENTS.md — repo-specific notes for `slop-game`
 
-Bevy 0.19 game, scaffolded from `bevy_game_template`. Package name is
-`bevy_game` (see `Cargo.toml`); workspace also contains `mobile/`.
+## Introduction
+
+**slop-game** is a small, cross-platform arcade game built with the
+[Bevy](https://bevyengine.org/) game engine (Rust). The game itself is
+**Bevy Catcher**: a 45-second round where you steer the Bevy logo around the
+screen (arrow keys / WASD / touch drag) to catch falling coins before the
+timer runs out. Coins fall faster and spawn more often as your score climbs,
+so each round gets progressively more frantic; when the timer hits zero you
+see your final score with the option to play again or return to the menu.
+
+- **Repository:** `slop-game` — <https://github.com/Wafflesthecat101/slop-game>
+- **Local path:** `~/workspace/slop-game` (git remote `origin`, default branch `main`)
+- **Engine / language:** Bevy **0.19** on Rust (scaffolded from
+  [`NiklasEi/bevy_game_template`](https://github.com/NiklasEi/bevy_game_template)).
+- **Cargo package:** `bevy_game` (the crate name still reflects the template;
+  the *project* is `slop-game`). The workspace also contains a `mobile/` crate.
+- **Targets:** native (Windows/Linux/macOS), Web/WASM (deployed to GitHub
+  Pages via `trunk`), and mobile (Android/iOS), all wired up through the
+  template's GitHub Actions workflows in `.github/workflows/`.
+- **Gameplay code:** the round timer, scoring, and collectible
+  spawning/collision live in `src/game.rs` (pure logic, unit-tested and
+  independent of rendering); the HUD is in `src/hud.rs` and the game-over
+  screen in `src/game_over.rs`.
+- **`blender_landscape/`** is a separate, standalone asset (a procedurally
+  generated Blender landscape: script + `.blend` + rendered PNG) and is *not*
+  part of the Bevy build.
+
+This file is the persistent memory for the repo — the sections below capture
+the build/test/lint workflow, dependency-upgrade gotchas, how to run the game
+headlessly in this sandbox, and the gameplay architecture conventions. Read
+it before making changes, and keep it up to date as the project evolves.
 
 ## Build/test/lint commands
 
