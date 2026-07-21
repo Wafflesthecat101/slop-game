@@ -37,5 +37,16 @@ impl Plugin for GamePlugin {
             beacons::BeaconsPlugin,
             hud::HudPlugin,
         ));
+
+        // Review-only: expose the Bevy Remote Protocol so a reviewer/tool can
+        // introspect the live ECS world over HTTP (127.0.0.1:15702) and verify
+        // a change behaves as intended. `BrpExtrasPlugin` adds the core
+        // RemotePlugin + RemoteHttpPlugin itself (and skips them if already
+        // present), plus `brp_extras/*` methods — notably in-engine viewport
+        // screenshots and input simulation, so the world can be walked and
+        // captured headlessly. Compiled out of every shipped build; see
+        // `docs/REVIEW.md`.
+        #[cfg(feature = "review")]
+        app.add_plugins(bevy_brp_extras::BrpExtrasPlugin::default());
     }
 }

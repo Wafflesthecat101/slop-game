@@ -163,6 +163,53 @@ the game fine at ~60 FPS. No `xdotool`/screenshot tool is installed, so
 clicking through UI states can't be automated headlessly here; rely on
 unit tests + code review for state-transition logic instead.
 
+## Reviewing a PR at runtime (BRP)
+
+Beyond the static gate, PRs can be verified to actually *run and do what they
+intend* using Bevy tooling. See [`docs/REVIEW.md`](docs/REVIEW.md) for the full
+process; the essentials for an agent:
+
+- **`review` cargo feature** (`bevy/bevy_remote` + the optional
+  `bevy_brp_extras` dep) adds `RemotePlugin` + `RemoteHttpPlugin` and
+  `BrpExtrasPlugin` behind `#[cfg(feature = "review")]` in `GamePlugin`, so the
+  running game exposes the **Bevy Remote Protocol** on `127.0.0.1:15702`. It is
+  compiled out of every shipped build (native + WASM); `cargo check` default
+  features stays unchanged. The first `--features review` build compiles
+  `bevy_remote` + `bevy_brp_extras` + deps once (~5-6 min), then is fast.
+- This bevy_remote (0.19) uses the **`world.*`** JSON-RPC namespace, *not*
+  `bevy/*`: `world.query`, `world.list_resources`, `world.get_resources`,
+  `world.list_components`, `rpc.discover`. (`bevy/list` returns method-not-found.)
+- Query entities by a **fully-qualified reflect path**, e.g. the camera is
+  `bevy_camera::components::Camera3d` (not `..::camera::Camera3d`), beacons carry
+  `bevy_light::point_light::PointLight`, sun is
+  `bevy_light::directional_light::DirectionalLight`; `ClearColor` /
+  `GlobalAmbientLight` are readable resources. Built-in Bevy types are already
+  reflected/registered; to introspect a *game* type it must
+  `#[derive(Reflect)]` + `register_type()` (e.g. gameplay `Score`/`Progress` are
+  currently NOT reflected, so BRP reports "Unknown resource type").
+- **Scripts** (`gh` is NOT installed — PR fetch uses the GitHub API via `curl`):
+  - `scripts/review-pr.sh <pr_number|--branch B|--worktree> [expectations]` —
+    full layered review (gate → headless smoke → BRP intent), restores your
+    branch, prints a paste-ready summary. **Requires a clean working tree** for
+    PR/branch modes (it refuses otherwise, so a dirty tree can't cause a
+    false pass on the wrong commit); it verifies HEAD == the fetched SHA. The
+    tooling is snapshotted to a temp dir before checkout, so it works on PRs
+    that don't contain `scripts/`. If the reviewed code has **no `review`
+    feature** (PRs predating this tooling), layers 2–3 are **SKIP**, not FAIL
+    → "OVERALL: PASS (gate only)".
+  - `scripts/brp-verify.sh [expectations]` — just the headless run + BRP
+    assertions; `BRP_BOOT_SECONDS` controls the settle delay before asserting.
+  - `scripts/walkthrough.sh [out_dir]` — drive the player over BRP
+    (`brp_extras/send_keys`) and capture in-engine viewport screenshots
+    (`brp_extras/screenshot`) along a path; renders under the software renderer
+    with no external screenshot tool. Screenshot params: `{"path":"…"}`
+    (optional `"camera": <entity>`). `send_keys` params:
+    `{"keys":["KeyW","ShiftLeft"],"duration_ms":N}` (Bevy `KeyCode` names).
+    Also `brp_extras/shutdown` for a clean exit.
+  - `scripts/expectations.default.txt` — baseline invariants for `main`
+    (Camera3d eq 1, PointLight eq 12, DirectionalLight ge 1, sky/ambient
+    resources). Copy + adjust per gameplay PR.
+
 ## Architecture
 
 `GamePlugin` (`src/lib.rs`) composes five small, single-purpose plugins.
