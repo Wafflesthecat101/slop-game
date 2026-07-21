@@ -36,6 +36,16 @@ dev = [
     "bevy/dynamic_linking",
 ]
 
+# Enables the Bevy Remote Protocol (BRP) server so an external reviewer/tool
+# (e.g. bevy_brp_mcp, or plain curl to 127.0.0.1:15702) can introspect the
+# running ECS world — resources, entities, components — to verify a change
+# does what it intends at runtime, not just that it compiles. Strictly a
+# review/CI aid: the shipped game (native + WASM) never enables it, so it adds
+# no code or attack surface to release builds. See `docs/REVIEW.md`.
+review = [
+    "bevy/bevy_remote",
+]
+
 # Bevy's default features minus android_shared_stdcxx/android-game-activity
 #   (those are covered in the `mobile` crate). This is a 3D game, so the 3D
 #   render/UI features are what matter here.

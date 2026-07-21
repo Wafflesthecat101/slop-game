@@ -36,5 +36,15 @@ impl Plugin for GamePlugin {
             beacons::BeaconsPlugin,
             hud::HudPlugin,
         ));
+
+        // Review-only: expose the Bevy Remote Protocol so a reviewer/tool can
+        // introspect the live ECS world over HTTP (127.0.0.1:15702) and verify
+        // a change behaves as intended. Compiled out of every shipped build;
+        // see `docs/REVIEW.md`.
+        #[cfg(feature = "review")]
+        app.add_plugins((
+            bevy::remote::RemotePlugin::default(),
+            bevy::remote::http::RemoteHttpPlugin::default(),
+        ));
     }
 }
