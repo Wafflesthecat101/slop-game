@@ -10,8 +10,9 @@
 //!   in `assets/textures/`.
 //! * [`player::PlayerPlugin`] — a first-person controller (mouse look, WASD,
 //!   gravity, jump) with weighty acceleration, head-bob and a sprint FOV kick.
-//! * [`beacons::BeaconsPlugin`] — glowing beacon landmarks that double as the
-//!   collect-them-all objective (the core gameplay loop).
+//! * [`beacons::BeaconsPlugin`] — glowing shrine landmarks you rekindle to
+//!   carry light back into the world (the core gameplay loop); owns the shared
+//!   [`beacons::Progress`] resource and [`beacons::ShrineLit`] message.
 //! * [`hud::HudPlugin`] — a crosshair, controls hint, and objective counter.
 //!
 //! The terrain shape lives in [`terrain`] as a pure function shared by the

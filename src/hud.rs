@@ -1,7 +1,7 @@
 //! Minimal on-screen UI: a centre crosshair, a controls hint, and an
-//! objective counter that reflects the [`crate::beacons::Score`] resource.
+//! objective counter that reflects the [`crate::beacons::Progress`] resource.
 
-use crate::beacons::{BeaconCollected, Score};
+use crate::beacons::{Progress, ShrineLit};
 use bevy::prelude::*;
 
 pub struct HudPlugin;
@@ -56,7 +56,7 @@ fn spawn_hud(mut commands: Commands) {
     // Objective counter, top-left. Populated by `update_objective`.
     commands.spawn((
         ObjectiveText,
-        Text::new("Beacons 0"),
+        Text::new("Shrines 0"),
         TextFont {
             font_size: bevy::text::FontSize::Px(22.0),
             ..default()
@@ -71,28 +71,28 @@ fn spawn_hud(mut commands: Commands) {
     ));
 }
 
-/// Keep the objective text in sync with the score, and briefly brighten it
-/// (feedback) whenever a beacon is collected. Announces victory when all
-/// beacons are found.
+/// Keep the objective text in sync with progress, and briefly brighten it
+/// (feedback) whenever a shrine is rekindled. Announces completion when every
+/// shrine has been lit.
 fn update_objective(
-    score: Res<Score>,
-    mut collected: MessageReader<BeaconCollected>,
+    progress: Res<Progress>,
+    mut lit: MessageReader<ShrineLit>,
     text: Single<(&mut Text, &mut TextColor), With<ObjectiveText>>,
 ) {
     let (mut text, mut color) = text.into_inner();
 
-    if score.is_changed() {
-        **text = if score.collected >= score.total && score.total > 0 {
-            format!("All {} beacons found!", score.total)
+    if progress.is_changed() {
+        **text = if progress.lit >= progress.total && progress.total > 0 {
+            format!("All {} shrines rekindled!", progress.total)
         } else {
-            format!("Beacons {} / {}", score.collected, score.total)
+            format!("Shrines {} / {}", progress.lit, progress.total)
         };
     }
 
-    // A collection this frame flashes the counter bright yellow; otherwise it
+    // A rekindle this frame flashes the counter bright yellow; otherwise it
     // eases back to its calm cyan.
-    if !collected.is_empty() {
-        collected.clear();
+    if !lit.is_empty() {
+        lit.clear();
         *color = TextColor(Color::srgb(1.0, 1.0, 0.4));
     } else {
         let c = color.0.to_srgba();
