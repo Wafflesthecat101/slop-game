@@ -190,7 +190,13 @@ process; the essentials for an agent:
 - **Scripts** (`gh` is NOT installed — PR fetch uses the GitHub API via `curl`):
   - `scripts/review-pr.sh <pr_number|--branch B|--worktree> [expectations]` —
     full layered review (gate → headless smoke → BRP intent), restores your
-    branch, prints a paste-ready summary.
+    branch, prints a paste-ready summary. **Requires a clean working tree** for
+    PR/branch modes (it refuses otherwise, so a dirty tree can't cause a
+    false pass on the wrong commit); it verifies HEAD == the fetched SHA. The
+    tooling is snapshotted to a temp dir before checkout, so it works on PRs
+    that don't contain `scripts/`. If the reviewed code has **no `review`
+    feature** (PRs predating this tooling), layers 2–3 are **SKIP**, not FAIL
+    → "OVERALL: PASS (gate only)".
   - `scripts/brp-verify.sh [expectations]` — just the headless run + BRP
     assertions; `BRP_BOOT_SECONDS` controls the settle delay before asserting.
   - `scripts/walkthrough.sh [out_dir]` — drive the player over BRP
