@@ -81,6 +81,17 @@ The pipeline runs cheapest-first and stops at the first failing layer:
 | 2. Headless smoke | launches under Xvfb; must boot and run a few seconds with **no panic** and a reachable BRP endpoint | `scripts/brp-verify.sh` |
 | 3. Runtime intent | queries the **live ECS** over BRP and asserts the world matches expectations (entity counts, resources present/absent) | `scripts/brp-verify.sh` + an expectations file |
 
+The review tooling itself (`scripts/`, expectations) is snapshotted to a temp
+dir **before** the PR is checked out and run from there, so it works even for
+PRs/forks whose commit doesn't contain these scripts — you always review with
+*your* tooling against the *PR's* game code.
+
+> **Runtime layers need the PR's code to expose BRP** via the opt-in `review`
+> feature (below). A PR that predates this tooling (no `review` feature in its
+> `Cargo.toml`) can't be introspected at runtime, so layers 2–3 are reported
+> **SKIP**, not FAIL, and the overall result reads *PASS (gate only)*. Rebase
+> such a PR onto a `main` that has the feature to enable full runtime checks.
+
 ## The `review` cargo feature (BRP)
 
 Layers 2–3 need the game to expose BRP. That is gated behind an **opt-in

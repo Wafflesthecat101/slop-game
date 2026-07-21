@@ -49,6 +49,21 @@ EXPECT_FILE="${EXPECT_FILE:-$SCRIPT_DIR/expectations.default.txt}"
 log()     { printf '%s\n' "$*" >&2; }
 section() { log ""; log "════════════════════════════════════════════════════════════"; log "  $*"; log "════════════════════════════════════════════════════════════"; }
 
+# Snapshot the review tooling to a stable location *before* we check out the
+# code under review. The PR/branch commit may not contain scripts/ (e.g. it
+# predates this tooling, or is a fork), and checking it out would otherwise
+# replace/remove brp-verify.sh + the expectations file mid-run. We always
+# review with *our* tooling, run against the PR's game code.
+STABLE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/review-tooling.XXXXXX")"
+cp "$SCRIPT_DIR"/*.sh "$STABLE_DIR"/ 2>/dev/null || true
+if [ -f "$EXPECT_FILE" ]; then
+    cp "$EXPECT_FILE" "$STABLE_DIR/expectations.txt"
+    EXPECT_FILE="$STABLE_DIR/expectations.txt"
+else
+    log "WARNING: expectations file '$EXPECT_FILE' not found; using none."
+    EXPECT_FILE=""
+fi
+
 ORIGINAL_REF="$(git rev-parse --abbrev-ref HEAD)"
 CHECKED_OUT=""
 restore() {
@@ -56,6 +71,7 @@ restore() {
         git checkout -q "$ORIGINAL_REF" 2>/dev/null || true
         git branch -D "$CHECKED_OUT" >/dev/null 2>&1 || true
     fi
+    [ -n "${STABLE_DIR:-}" ] && rm -rf "$STABLE_DIR"
 }
 trap restore EXIT INT TERM
 
@@ -151,8 +167,21 @@ gate() {
 run_layer gate gate || OVERALL=1
 
 if [ "${RESULT[gate]}" = "PASS" ]; then
-    section "Layer 2+3 — Headless run + BRP runtime intent checks"
-    run_layer runtime bash "$SCRIPT_DIR/brp-verify.sh" "$EXPECT_FILE" || OVERALL=1
+    # Runtime layers need the code under review to expose BRP via the opt-in
+    # `review` feature. A PR that predates this tooling (or otherwise lacks the
+    # feature) can't be introspected at runtime — that's not a failure of the
+    # PR, so SKIP those layers with a clear note rather than reporting FAIL.
+    if grep -qE '^[[:space:]]*review[[:space:]]*=' Cargo.toml; then
+        section "Layer 2+3 — Headless run + BRP runtime intent checks"
+        run_layer runtime bash "$STABLE_DIR/brp-verify.sh" "$EXPECT_FILE" || OVERALL=1
+    else
+        section "Layer 2+3 — Headless run + BRP runtime intent checks"
+        log "SKIP: the code under review has no \`review\` cargo feature, so BRP"
+        log "      runtime verification can't run. This is expected for PRs that"
+        log "      predate the review tooling; rebase onto a main that has it to"
+        log "      enable runtime checks. Static gate result stands."
+        RESULT[runtime]="SKIP"
+    fi
 else
     log "Skipping runtime layers because the static gate failed."
     RESULT[runtime]="SKIP"
@@ -166,7 +195,11 @@ printf '| Static gate (fmt/clippy/test/wasm) | %s |\n' "${RESULT[gate]:-SKIP}"
 printf '| Headless run + BRP runtime intent  | %s |\n' "${RESULT[runtime]:-SKIP}"
 printf '\n'
 if [ "$OVERALL" -eq 0 ]; then
-    printf 'OVERALL: PASS — builds, gate is green, boots headlessly, and the live ECS matches the expected world state.\n'
+    if [ "${RESULT[runtime]:-SKIP}" = "PASS" ]; then
+        printf 'OVERALL: PASS — builds, gate is green, boots headlessly, and the live ECS matches the expected world state.\n'
+    else
+        printf 'OVERALL: PASS (gate only) — builds and the static gate is green. Runtime intent checks were skipped (see the log); review the runtime behaviour another way if this PR changes gameplay.\n'
+    fi
 else
     printf 'OVERALL: FAIL — see the failing layer above.\n'
 fi
