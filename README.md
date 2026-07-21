@@ -7,6 +7,21 @@ A Bevy game project, scaffolded from [NiklasEi/bevy_game_template][template-repo
 - **Root** (`Cargo.toml`, `src/`, `assets/`, `mobile/`, `.github/workflows/`, ...) â€” the Bevy game itself, plus all the template's CI/CD, exactly as scaffolded from the template (see [`credits/CREDITS.md`](credits/CREDITS.md)/[License](#license) below), only re-branded (title, links, package ids) for this repo.
 - [`blender_landscape/`](blender_landscape) â€” a separate, standalone asset: a procedurally generated Blender landscape (script + `.blend` + rendered PNG), unrelated to the Bevy build.
 
+## Vision & roadmap
+
+*slop-game* is evolving into **Lumen** — a calm, first-person open world that
+slowly **reawakens as you carry light back into it**. The full vision, design
+pillars, and phased roadmap live in [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md).
+
+Building it is a team effort (including autonomous agents working in parallel):
+
+- **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)** — vision, pillars, roadmap.
+- **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — how to work in parallel
+  without merge conflicts, and the build/test/lint gate.
+- **[Development roadmap (master tracker)](https://github.com/Wafflesthecat101/slop-game/issues/38)**
+  and the [milestones](https://github.com/Wafflesthecat101/slop-game/milestones)
+  — pick an unblocked issue and go.
+
 ## Gameplay
 
 The game is a **3D open-world exploration game**. You spawn into a large,
