@@ -6,6 +6,7 @@ can move fast *without stepping on each other*. Read it fully before you start.
 
 See also:
 - [`docs/GAME_DESIGN.md`](GAME_DESIGN.md) — the vision, pillars, and roadmap.
+- [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — plugin/module map, diagram, and shared contracts.
 - [`docs/REVIEW.md`](REVIEW.md) — how a PR is verified: the static gate plus a
   headless run + Bevy Remote Protocol (BRP) runtime intent check
   (`scripts/review-pr.sh`).
