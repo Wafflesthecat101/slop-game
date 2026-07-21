@@ -30,7 +30,10 @@
 # See docs/REVIEW.md for the full review process this plugs into.
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The repo to build/run. Defaults to this script's own repo (…/scripts/..),
+# but review-pr.sh copies this script to a temp dir and runs it against a
+# checked-out PR, so it sets REVIEW_REPO_ROOT to point back at the real repo.
+REPO_ROOT="${REVIEW_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$REPO_ROOT"
 
 EXPECT_FILE="${1:-scripts/expectations.default.txt}"

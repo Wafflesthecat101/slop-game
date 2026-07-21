@@ -173,7 +173,7 @@ if [ "${RESULT[gate]}" = "PASS" ]; then
     # PR, so SKIP those layers with a clear note rather than reporting FAIL.
     if grep -qE '^[[:space:]]*review[[:space:]]*=' Cargo.toml; then
         section "Layer 2+3 — Headless run + BRP runtime intent checks"
-        run_layer runtime bash "$STABLE_DIR/brp-verify.sh" "$EXPECT_FILE" || OVERALL=1
+        run_layer runtime env REVIEW_REPO_ROOT="$REPO_ROOT" bash "$STABLE_DIR/brp-verify.sh" "$EXPECT_FILE" || OVERALL=1
     else
         section "Layer 2+3 — Headless run + BRP runtime intent checks"
         log "SKIP: the code under review has no \`review\` cargo feature, so BRP"
