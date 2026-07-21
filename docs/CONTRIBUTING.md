@@ -7,6 +7,9 @@ can move fast *without stepping on each other*. Read it fully before you start.
 See also:
 - [`docs/GAME_DESIGN.md`](GAME_DESIGN.md) — the vision, pillars, and roadmap.
 - [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — plugin/module map, diagram, and shared contracts.
+- [`docs/REVIEW.md`](REVIEW.md) — how a PR is verified: the static gate plus a
+  headless run + Bevy Remote Protocol (BRP) runtime intent check
+  (`scripts/review-pr.sh`).
 - [`AGENTS.md`](../AGENTS.md) — repo-specific build/test/lint notes,
   dependency gotchas, headless-run instructions, and architecture conventions.
   **`AGENTS.md` is authoritative for anything technical; this file is about
@@ -42,6 +45,11 @@ cargo check -p bevy_game --target wasm32-unknown-unknown   # WASM deploy target
 - The sandbox has no GPU/display by default; see `AGENTS.md` for the headless
   Xvfb smoke-test recipe. Rely on unit tests + code review for anything that
   can't be automated headlessly.
+- **Runtime review.** Beyond the gate, a reviewer can verify a PR actually
+  *works* by running `scripts/review-pr.sh <pr_number>`, which boots the game
+  headlessly with the Bevy Remote Protocol enabled and asserts the live ECS
+  matches an expectations file. If your PR changes gameplay, ship its intended
+  world state as an expectations file — see [`docs/REVIEW.md`](REVIEW.md).
 
 ## 3. Working in a large team (conflict avoidance)
 

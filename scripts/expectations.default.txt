@@ -1,0 +1,25 @@
+# Default runtime expectations for the Lumen world, checked against the live
+# ECS via the Bevy Remote Protocol by scripts/brp-verify.sh.
+#
+# These are baseline invariants that should hold for the game as it stands on
+# `main`. A PR that changes gameplay should copy this file, adjust it, and pass
+# its own path to brp-verify.sh (see docs/REVIEW.md).
+#
+# Format (one assertion per line; `#` comments and blank lines ignored):
+#   entities <fully::qualified::TypePath> <eq|ge|le|gt|lt> <n>
+#   resource_exists <fully::qualified::ResourcePath>
+#   resource_absent  <fully::qualified::ResourcePath>
+
+# Exactly one first-person camera (the player).
+entities bevy_camera::components::Camera3d eq 1
+
+# The 12 beacon/shrine landmarks each carry a PointLight on their orb, so the
+# gameplay objects are actually spawned in the world.
+entities bevy_light::point_light::PointLight eq 12
+
+# A single sun lights the scene.
+entities bevy_light::directional_light::DirectionalLight ge 1
+
+# Atmosphere resources exist (sky clear colour + global ambient light).
+resource_exists bevy_camera::clear_color::ClearColor
+resource_exists bevy_light::ambient_light::GlobalAmbientLight

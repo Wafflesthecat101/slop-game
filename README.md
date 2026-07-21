@@ -19,6 +19,10 @@ Building it is a team effort (including autonomous agents working in parallel):
 - **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — how to work in parallel
   without merge conflicts, and the build/test/lint gate.
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — plugin/module map and shared contracts for contributors.
+- **[docs/REVIEW.md](docs/REVIEW.md)** â€” how PRs are reviewed: an
+  agent runbook plus a scriptable pipeline (`scripts/review-pr.sh`) that runs
+  the gate, boots the game headlessly, and verifies the live world over the
+  Bevy Remote Protocol (with in-engine screenshots).
 - **[Development roadmap (master tracker)](https://github.com/Wafflesthecat101/slop-game/issues/38)**
   and the [milestones](https://github.com/Wafflesthecat101/slop-game/milestones)
   — pick an unblocked issue and go.
