@@ -11,6 +11,7 @@
 //! placement on hilltops, and two small systems (animate, collect).
 
 use crate::player::Collider;
+use crate::states::GameState;
 use crate::terrain::{self, HALF_SIZE};
 use bevy::prelude::*;
 use rand::rngs::StdRng;
@@ -36,7 +37,10 @@ impl Plugin for BeaconsPlugin {
         })
         .add_message::<BeaconCollected>()
         .add_systems(Startup, spawn_beacons)
-        .add_systems(Update, (animate_orbs, collect_beacons));
+        .add_systems(
+            Update,
+            (animate_orbs, collect_beacons).run_if(in_state(GameState::Playing)),
+        );
     }
 }
 

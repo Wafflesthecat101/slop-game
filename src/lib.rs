@@ -5,6 +5,9 @@
 //! The game is composed of small, single-purpose plugins wired together by
 //! [`GamePlugin`]:
 //!
+//! * [`states::StatePlugin`] — the [`states::GameState`] machine
+//!   (Boot → MainMenu → Playing → Paused); gameplay only simulates in
+//!   `Playing`, and `Esc` toggles pause.
 //! * [`world::WorldPlugin`] — procedural terrain, sky/lighting, and scattered
 //!   trees and rocks, all built once at startup and textured with the assets
 //!   in `assets/textures/`.
@@ -20,6 +23,7 @@
 mod beacons;
 mod hud;
 mod player;
+mod states;
 mod terrain;
 mod world;
 
@@ -31,6 +35,7 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            states::StatePlugin,
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
