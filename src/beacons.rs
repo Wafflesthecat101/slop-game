@@ -21,6 +21,7 @@
 //! rekindling one brightens just that orb.
 
 use crate::player::Collider;
+use crate::states::GameState;
 use crate::terrain::{self, HALF_SIZE};
 use bevy::prelude::*;
 use rand::rngs::StdRng;
@@ -49,7 +50,10 @@ impl Plugin for BeaconsPlugin {
         app.insert_resource(Progress { lit: 0, total: 0 })
             .add_message::<ShrineLit>()
             .add_systems(Startup, spawn_shrines)
-            .add_systems(Update, (animate_orbs, rekindle_shrines));
+            .add_systems(
+                Update,
+                (animate_orbs, rekindle_shrines).run_if(in_state(GameState::Playing)),
+            );
     }
 }
 

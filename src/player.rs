@@ -6,6 +6,7 @@
 //! one component (rather than spread across resources) makes the movement
 //! system a single, self-contained query.
 
+use crate::states::GameState;
 use crate::terrain;
 use crate::world::SKY_COLOR;
 use bevy::camera::Hdr;
@@ -51,7 +52,10 @@ impl Plugin for PlayerPlugin {
                     (grab_on_click, release_cursor),
                     (mouse_look, move_player, sprint_fov),
                 )
-                    .chain(),
+                    .chain()
+                    // Player control and look only run during active gameplay;
+                    // pausing (or the menu) freezes the camera.
+                    .run_if(in_state(GameState::Playing)),
             );
     }
 }
