@@ -1,46 +1,47 @@
 # slop-game
 
-A Bevy game project, scaffolded from [NiklasEi/bevy_game_template][template-repo] — the most widely-used, actively maintained community template for [Bevy][bevy] games. It ships with ready-to-go CI/CD, including a GitHub Actions workflow that builds the game to WebAssembly and deploys it straight to **GitHub Pages**.
+A Bevy game project, scaffolded from [NiklasEi/bevy_game_template][template-repo] â the most widely-used, actively maintained community template for [Bevy][bevy] games. It ships with ready-to-go CI/CD, including a GitHub Actions workflow that builds the game to WebAssembly and deploys it straight to **GitHub Pages**.
 
 ## Repository layout
 
-- **Root** (`Cargo.toml`, `src/`, `assets/`, `mobile/`, `.github/workflows/`, ...) — the Bevy game itself, plus all the template's CI/CD, exactly as scaffolded from the template (see [`credits/CREDITS.md`](credits/CREDITS.md)/[License](#license) below), only re-branded (title, links, package ids) for this repo.
-- [`blender_landscape/`](blender_landscape) — a separate, standalone asset: a procedurally generated Blender landscape (script + `.blend` + rendered PNG), unrelated to the Bevy build.
+- **Root** (`Cargo.toml`, `src/`, `assets/`, `mobile/`, `.github/workflows/`, ...) â the Bevy game itself, plus all the template's CI/CD, exactly as scaffolded from the template (see [`credits/CREDITS.md`](credits/CREDITS.md)/[License](#license) below), only re-branded (title, links, package ids) for this repo.
+- [`blender_landscape/`](blender_landscape) â a separate, standalone asset: a procedurally generated Blender landscape (script + `.blend` + rendered PNG), unrelated to the Bevy build.
 
 ## Vision & roadmap
 
-*slop-game* is evolving into **Lumen** � a calm, first-person open world that
+*slop-game* is evolving into **Lumen**  a calm, first-person open world that
 slowly **reawakens as you carry light back into it**. The full vision, design
 pillars, and phased roadmap live in [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md).
 
 Building it is a team effort (including autonomous agents working in parallel):
 
-- **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)** � vision, pillars, roadmap.
-- **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** � how to work in parallel
+- **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)**  vision, pillars, roadmap.
+- **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)**  how to work in parallel
   without merge conflicts, and the build/test/lint gate.
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — plugin/module map and shared contracts for contributors.
 - **[Development roadmap (master tracker)](https://github.com/Wafflesthecat101/slop-game/issues/38)**
   and the [milestones](https://github.com/Wafflesthecat101/slop-game/milestones)
-  � pick an unblocked issue and go.
+   pick an unblocked issue and go.
 
 ## Gameplay
 
 The game is a **3D open-world exploration game**. You spawn into a large,
-procedurally generated landscape of rolling hills � sandy lowlands, green
-midlands and rocky highlands � scattered with textured trees and rocks, and
+procedurally generated landscape of rolling hills  sandy lowlands, green
+midlands and rocky highlands  scattered with textured trees and rocks, and
 wrapped in atmospheric distance fog under a warm, low sun. Your goal is to find
 and collect all the glowing **beacons**: tall pillars topped with bright,
 floating orbs that you can spot from across the map and navigate toward.
 
-- **Mouse** � look around
-- **WASD** � walk (with weighty acceleration and subtle head-bob)
-- **Shift** � sprint (widens the field of view for a sense of speed)
-- **Space** � jump
-- **Esc** � release the mouse cursor (click to re-grab)
+- **Mouse**  look around
+- **WASD**  walk (with weighty acceleration and subtle head-bob)
+- **Shift**  sprint (widens the field of view for a sense of speed)
+- **Space**  jump
+- **Esc**  release the mouse cursor (click to re-grab)
 
-Trees, rocks and beacon pillars are solid � you walk around them, not through
+Trees, rocks and beacon pillars are solid  you walk around them, not through
 them. Walk close to a beacon to collect it; the objective counter (top-left) ticks up
 and flashes, and announces victory once you've found them all. There's no
-timer � it's a calm, curiosity-driven world to explore.
+timer  it's a calm, curiosity-driven world to explore.
 
 The world (terrain mesh, sky/lighting, scattered scenery) is built in
 [`src/world.rs`](src/world.rs); the first-person controller with game-feel
@@ -57,7 +58,7 @@ seamless, tileable 512x512 PNGs.
 
 This is already wired up via [`.github/workflows/deploy-page.yaml`](.github/workflows/deploy-page.yaml):
 
-1. Trigger the `deploy-github-page` workflow (Actions tab → "deploy-github-page" → "Run workflow", or via the API).
+1. Trigger the `deploy-github-page` workflow (Actions tab â "deploy-github-page" â "Run workflow", or via the API).
 2. It builds the game with [`trunk`](https://github.com/trunk-rs/trunk) targeting `wasm32-unknown-unknown`, runs `wasm-opt`, and pushes the result to the `gh-pages` branch.
 3. Enable [GitHub Pages](https://pages.github.com/) for this repository, sourcing from the `gh-pages` branch.
 4. The game will be live at `https://<username>.github.io/<repository>`.
@@ -66,7 +67,7 @@ Re-run the workflow any time to publish a newer version. `.github/workflows/ci.y
 
 ## Bevy version
 
-Runs on Bevy **0.19.0** (originally bumped from the template's pinned 0.18.0). The 3D rewrite trimmed the dependency set to what a 3D game needs � Bevy's 3D/UI render features plus `rand` for procedural scattering � and dropped the arcade game's `bevy_kira_audio`, `bevy_asset_loader`, and `webbrowser` deps.
+Runs on Bevy **0.19.0** (originally bumped from the template's pinned 0.18.0). The 3D rewrite trimmed the dependency set to what a 3D game needs  Bevy's 3D/UI render features plus `rand` for procedural scattering  and dropped the arcade game's `bevy_kira_audio`, `bevy_asset_loader`, and `webbrowser` deps.
 
 ## Original template README
 

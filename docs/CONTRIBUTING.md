@@ -5,7 +5,8 @@ agents — working **in parallel**. This guide exists so that a large workforce
 can move fast *without stepping on each other*. Read it fully before you start.
 
 See also:
-- [`docs/GAME_DESIGN.md`](GAME_DESIGN.md) — the vision, pillars, and roadmap.
+- [`docs/GAME_DESIGN.md`](GAME_DESIGN.md)
+- [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — plugin/module map, diagram, and shared contracts. — the vision, pillars, and roadmap.
 - [`AGENTS.md`](../AGENTS.md) — repo-specific build/test/lint notes,
   dependency gotchas, headless-run instructions, and architecture conventions.
   **`AGENTS.md` is authoritative for anything technical; this file is about
