@@ -51,6 +51,34 @@ Build/run it yourself with `cargo run --features review`, then talk to it with
 client. This bevy_remote (0.19) uses the `world.*` JSON-RPC method namespace
 (`world.query`, `world.list_resources`, `world.get_resources`, `rpc.discover`, …).
 
+The `review` feature also pulls in
+[`bevy_brp_extras`](https://crates.io/crates/bevy_brp_extras), which adds
+`brp_extras/*` methods on top of core BRP — most usefully **in-engine viewport
+screenshots** (`brp_extras/screenshot`) and **input simulation**
+(`brp_extras/send_keys`). Because the frame is rendered by Bevy itself, this
+works under the sandbox's software renderer with no external screenshot tool.
+
+## Seeing the world — screenshots & walkthroughs
+
+Numbers prove structure; screenshots prove it *looks* right. With the game
+running under `--features review`:
+
+```bash
+# One frame from the player camera:
+curl -s -X POST http://127.0.0.1:15702 -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"brp_extras/screenshot","params":{"path":"/tmp/shot.png"}}'
+
+# Walk the player and capture frames along the way:
+scripts/walkthrough.sh out/            # writes 00_start.png, 01_KeyW.png, …
+```
+
+`scripts/walkthrough.sh` drives the *real* player controller with simulated key
+presses (`brp_extras/send_keys` — so terrain-following, sprint FOV, collision,
+etc. all apply), logs the camera position after each leg, and screenshots. Set
+`STEPS` to script a custom path, e.g.
+`STEPS="KeyW:2000 KeyD:1000 KeyW+ShiftLeft:1500" scripts/walkthrough.sh`.
+Key names are Bevy `KeyCode` variants (`KeyW`, `ShiftLeft`, `Space`, …).
+
 ## Running the review
 
 ```bash

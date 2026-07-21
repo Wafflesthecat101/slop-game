@@ -39,11 +39,15 @@ dev = [
 # Enables the Bevy Remote Protocol (BRP) server so an external reviewer/tool
 # (e.g. bevy_brp_mcp, or plain curl to 127.0.0.1:15702) can introspect the
 # running ECS world — resources, entities, components — to verify a change
-# does what it intends at runtime, not just that it compiles. Strictly a
+# does what it intends at runtime, not just that it compiles. The optional
+# bevy_brp_extras dep adds `brp_extras/*` methods (in-engine viewport
+# SCREENSHOTS, input simulation, clean shutdown) on top of core bevy_remote,
+# so a reviewer can walk the world and capture frames headlessly. Strictly a
 # review/CI aid: the shipped game (native + WASM) never enables it, so it adds
 # no code or attack surface to release builds. See `docs/REVIEW.md`.
 review = [
     "bevy/bevy_remote",
+    "dep:bevy_brp_extras",
 ]
 
 # Bevy's default features minus android_shared_stdcxx/android-game-activity
@@ -69,6 +73,11 @@ bevy = { version = "0.19.0", default-features = false, features = [
 # to avoid compiling two incompatible major versions of the crate. Used for
 # deterministic procedural scattering of world objects.
 rand = { version = "0.10" }
+
+# Review-only (see the `review` feature): extra BRP methods — in-engine
+# viewport screenshots, input simulation, clean shutdown. `optional` so it is
+# only compiled when `--features review` is set; never in a shipped build.
+bevy_brp_extras = { version = "0.22", optional = true }
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.30", default-features = false }

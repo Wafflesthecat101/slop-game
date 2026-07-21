@@ -169,12 +169,13 @@ Beyond the static gate, PRs can be verified to actually *run and do what they
 intend* using Bevy tooling. See [`docs/REVIEW.md`](docs/REVIEW.md) for the full
 process; the essentials for an agent:
 
-- **`review` cargo feature** (`bevy/bevy_remote`) adds `RemotePlugin` +
-  `RemoteHttpPlugin` behind `#[cfg(feature = "review")]` in `GamePlugin`, so the
+- **`review` cargo feature** (`bevy/bevy_remote` + the optional
+  `bevy_brp_extras` dep) adds `RemotePlugin` + `RemoteHttpPlugin` and
+  `BrpExtrasPlugin` behind `#[cfg(feature = "review")]` in `GamePlugin`, so the
   running game exposes the **Bevy Remote Protocol** on `127.0.0.1:15702`. It is
   compiled out of every shipped build (native + WASM); `cargo check` default
   features stays unchanged. The first `--features review` build compiles
-  `bevy_remote` + deps once (~6 min), then is fast.
+  `bevy_remote` + `bevy_brp_extras` + deps once (~5-6 min), then is fast.
 - This bevy_remote (0.19) uses the **`world.*`** JSON-RPC namespace, *not*
   `bevy/*`: `world.query`, `world.list_resources`, `world.get_resources`,
   `world.list_components`, `rpc.discover`. (`bevy/list` returns method-not-found.)
@@ -192,6 +193,13 @@ process; the essentials for an agent:
     branch, prints a paste-ready summary.
   - `scripts/brp-verify.sh [expectations]` — just the headless run + BRP
     assertions; `BRP_BOOT_SECONDS` controls the settle delay before asserting.
+  - `scripts/walkthrough.sh [out_dir]` — drive the player over BRP
+    (`brp_extras/send_keys`) and capture in-engine viewport screenshots
+    (`brp_extras/screenshot`) along a path; renders under the software renderer
+    with no external screenshot tool. Screenshot params: `{"path":"…"}`
+    (optional `"camera": <entity>`). `send_keys` params:
+    `{"keys":["KeyW","ShiftLeft"],"duration_ms":N}` (Bevy `KeyCode` names).
+    Also `brp_extras/shutdown` for a clean exit.
   - `scripts/expectations.default.txt` — baseline invariants for `main`
     (Camera3d eq 1, PointLight eq 12, DirectionalLight ge 1, sky/ambient
     resources). Copy + adjust per gameplay PR.

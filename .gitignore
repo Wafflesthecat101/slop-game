@@ -3,3 +3,6 @@ target/
 .DS_Store
 
 dist/
+
+# Review screenshots captured by scripts/walkthrough.sh
+walkthrough/
