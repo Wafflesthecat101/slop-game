@@ -12,7 +12,9 @@ use bevy::camera::Hdr;
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
-use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow, WindowFocused};
+use bevy::window::{
+    CursorGrabMode, CursorLeft, CursorOptions, PrimaryWindow, Window, WindowFocused,
+};
 
 const EYE_HEIGHT: f32 = 1.8;
 const WALK_SPEED: f32 = 12.0;
@@ -43,12 +45,13 @@ impl Plugin for PlayerPlugin {
             .add_systems(
                 Update,
                 (
-                    mouse_look,
-                    move_player,
-                    sprint_fov,
-                    grab_on_click,
-                    release_cursor,
-                ),
+                    // Sync the cursor grab state to reality *before* the systems
+                    // that read it, so releasing the cursor stops mouse-look on
+                    // the same frame it happens (no one-frame lag).
+                    (grab_on_click, release_cursor),
+                    (mouse_look, move_player, sprint_fov),
+                )
+                    .chain(),
             );
     }
 }
@@ -128,22 +131,30 @@ fn grab_on_click(
     }
 }
 
-/// Release the mouse cursor. Freeing must happen for two independent reasons,
-/// and handling both here is what makes a *single* Escape reliably work:
+/// Release the mouse cursor. Freeing must happen for several independent
+/// reasons, and handling them all here is what makes a *single* Escape
+/// reliably work across native and web:
 ///
 /// * Escape pressed (native, and web when the key reaches us).
-/// * The window loses focus. On the web the browser exits pointer lock on the
-///   first Escape *itself* and usually swallows that key event, so we would
-///   otherwise never see it and our state would stay `Locked` (which is what
-///   made it take a second press). The focus-lost event fires in that case, so
-///   we sync our state to reality and stop trying to re-lock.
+/// * The window loses focus.
+/// * The cursor leaves the window. On the web the browser exits pointer lock
+///   on the first Escape *itself* and usually swallows that key event, and it
+///   does **not** drop window focus (only pointer lock is lost), so neither of
+///   the above fires — our `grab_mode` would stay `Locked` and mouse-look would
+///   keep following the now-free cursor (this is the reported bug). Winit does
+///   not write the external unlock back to `CursorOptions` (it treats
+///   `grab_mode` as our *intent*, see its `attempt_grab`), so we detect it via
+///   the `CursorLeft` event the freed cursor produces and sync our state to
+///   reality, stopping mouse-look immediately.
 fn release_cursor(
     keys: Res<ButtonInput<KeyCode>>,
     mut focus: MessageReader<WindowFocused>,
+    mut left: MessageReader<CursorLeft>,
     mut cursor: Single<&mut CursorOptions, With<PrimaryWindow>>,
 ) {
     let lost_focus = focus.read().any(|e| !e.focused);
-    if keys.just_pressed(KeyCode::Escape) || lost_focus {
+    let cursor_left = left.read().next().is_some();
+    if keys.just_pressed(KeyCode::Escape) || lost_focus || cursor_left {
         cursor.visible = true;
         cursor.grab_mode = CursorGrabMode::None;
     }
@@ -151,10 +162,14 @@ fn release_cursor(
 
 fn mouse_look(
     motion: Res<AccumulatedMouseMotion>,
-    cursor: Single<&CursorOptions, With<PrimaryWindow>>,
+    window: Single<(&Window, &CursorOptions), With<PrimaryWindow>>,
     mut player: Single<(&mut Player, &mut Transform)>,
 ) {
-    if cursor.grab_mode == CursorGrabMode::None {
+    let (window, cursor) = &*window;
+    // Only steer the camera while the cursor is actually captured *and* the
+    // window is focused — otherwise a freed or background cursor would still
+    // drive the view.
+    if cursor.grab_mode == CursorGrabMode::None || !window.focused {
         return;
     }
     let (player, transform) = &mut *player;

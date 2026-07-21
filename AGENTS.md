@@ -217,17 +217,32 @@ and then simulated every `Update`. Key conventions:
   Transform`. Because colliders are plain components, a collected beacon's
   collider disappears when its entity despawns — no separate bookkeeping.
 - **Cursor grab/release is split across two systems** (`grab_on_click`,
-  `release_cursor`). Release triggers on Escape *or* window-focus-loss: on the
-  web the browser exits pointer lock on the first Escape itself and often
-  swallows that key event, so relying on the key alone made release take two
-  presses; reacting to the `WindowFocused` message too keeps our
-  `CursorOptions` in sync with the browser and fixes the single-press release.
+  `release_cursor`), ordered *before* `mouse_look`/`move_player` via `.chain()`
+  so a release takes effect the same frame (no one-frame look lag). Release
+  triggers on Escape, window-focus-loss, **or `CursorLeft`**. Winit treats
+  `CursorOptions.grab_mode` as our *intent* and does **not** write an external
+  unlock back to it (see its `attempt_grab`), so when the web browser exits
+  pointer lock on the first Escape itself — swallowing that key event and
+  *not* dropping window focus — neither Escape nor focus-loss fires and
+  `grab_mode` would stay `Locked`, leaving mouse-look following the now-free
+  cursor. Reacting to the `CursorLeft` event the freed cursor emits when it
+  leaves the window syncs our state to reality and stops the look. `mouse_look`
+  additionally gates on `Window::focused` so an unfocused/background window
+  never steers the camera.
 - **Cursor grab is a component in Bevy 0.19**, not a `Window` field: query
   `Single<&mut CursorOptions, With<PrimaryWindow>>` to lock/hide it.
 - **Ground/object textures are procedurally generated 512x512 seamless PNGs**
   in `assets/textures/`. They tile via UV repeat (see `GROUND_TILING` in
   `world.rs`). Regenerate or add textures there; keep them seamless so the
-  terrain has no visible tiling seams.
+  terrain has no visible tiling seams. **Tiling requires a `Repeat` sampler:**
+  Bevy's default image sampler address mode is `ClampToEdge`, which clamps
+  tiled UVs (0..N) to the texture's edge texel and makes the whole surface a
+  single flat colour (this was the "ground not rendering" bug). `world.rs`
+  loads ground textures via `assets.load_builder().with_settings(repeating_sampler).load(path)`
+  (`repeating_sampler` sets `address_mode_*: Repeat`). Object textures (trees,
+  rocks) use UVs in `[0,1]` so the sampler mode doesn't matter for them.
+  Note `AssetServer::load_with_settings` is deprecated in Bevy 0.19 in favour
+  of the `load_builder().with_settings(...).load(...)` form.
 
 ## Git workflow — direct pushes to `main` are pre-authorized
 

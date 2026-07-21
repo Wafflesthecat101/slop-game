@@ -9,6 +9,7 @@
 use crate::player::Collider;
 use crate::terrain::{self, HALF_SIZE};
 use bevy::asset::RenderAssetUsages;
+use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 use rand::rngs::StdRng;
@@ -45,16 +46,37 @@ pub const SKY_COLOR: Color = Color::srgb(0.70, 0.80, 0.92);
 
 /// A textured [`StandardMaterial`] that tiles its base-color image `tiling`
 /// times across the terrain UV range.
+///
+/// The image is loaded with a **repeating** sampler: Bevy's default sampler
+/// address mode is `ClampToEdge`, which would clamp our tiled UVs (0..N) to
+/// the texture's edge texel and make the whole surface a single flat colour.
+/// `Repeat` is what actually makes the texture tile across the terrain.
 fn textured(
     assets: &AssetServer,
     materials: &mut Assets<StandardMaterial>,
     path: &'static str,
 ) -> Handle<StandardMaterial> {
     materials.add(StandardMaterial {
-        base_color_texture: Some(assets.load(path)),
+        base_color_texture: Some(
+            assets
+                .load_builder()
+                .with_settings(repeating_sampler)
+                .load(path),
+        ),
         perceptual_roughness: 0.95,
         ..default()
     })
+}
+
+/// Image loader settings that make a texture tile (repeat) instead of clamping
+/// to its edge (Bevy's default), with linear min/mag filtering.
+fn repeating_sampler(settings: &mut ImageLoaderSettings) {
+    settings.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
+        address_mode_u: ImageAddressMode::Repeat,
+        address_mode_v: ImageAddressMode::Repeat,
+        address_mode_w: ImageAddressMode::Repeat,
+        ..ImageSamplerDescriptor::linear()
+    });
 }
 
 /// Like [`textured`] for the leaves image but multiplied by `tint`, so several
