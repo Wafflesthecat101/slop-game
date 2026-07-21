@@ -9,6 +9,61 @@ of the usual static gate.
 
 > TL;DR: `scripts/review-pr.sh <pr_number>` and read the PASS/FAIL summary.
 
+## Agent runbook — reviewing a PR end to end
+
+If you are an agent asked to *"review PR #N"*, do exactly this:
+
+1. **Run the automated pipeline** from the repo root:
+   ```bash
+   scripts/review-pr.sh <N>
+   ```
+   It checks out the PR, runs the static gate, boots the game headlessly with
+   BRP, checks the runtime intent, restores your branch, and prints a
+   paste-ready Markdown summary. Capture that summary.
+   - **Start from a clean working tree.** To review a PR/branch the script must
+     switch commits, so it refuses to run (exit 1) if you have uncommitted
+     changes — commit or `git stash --include-untracked` first. (`--worktree`
+     reviews the current tree in place and skips this.)
+   - It verifies `HEAD` actually matches the fetched PR commit before running
+     any layer, so a green result always refers to the PR's real code.
+   - If the PR changes gameplay and ships its own expectations file (e.g.
+     `scripts/expectations.<feature>.txt`), pass it:
+     `scripts/review-pr.sh <N> scripts/expectations.<feature>.txt`.
+2. **(Optional but encouraged) See it.** If the PR changes anything visual,
+   capture a walkthrough so your review shows the world, not just numbers:
+   ```bash
+   # brp-verify already built + launched the game during step 1's runtime layer,
+   # but that process has exited; launch one for screenshots:
+   cargo run --features review >/tmp/game.log 2>&1 &
+   #   (the scripts export DISPLAY=:97 for you; if launching by hand, see
+   #    "Environment notes" below)
+   scripts/walkthrough.sh /tmp/walk && kill %1
+   ```
+   View the PNGs in `/tmp/walk/` and mention what you saw.
+3. **Read the diff for quality**, not just correctness. A green gate does **not**
+   mean "approve" — still judge design, simplicity, module ownership
+   (`CONTRIBUTING.md`), and whether the change matches the issue's intent. See
+   the `code-review` skill for the bar.
+4. **Post the verdict on the PR.** Combine the pipeline summary, any screenshots
+   notes, and your code-quality read into one comment. Use the GitHub API (the
+   `gh` CLI is **not** installed here) or the GitHub tools available to you, and
+   **disclose that the review was produced by an AI agent**:
+   ```bash
+   OWNER_REPO=$(git remote get-url origin | sed -E 's#.*[/:]([^/]+/[^/]+?)(\.git)?$#\1#')
+   curl -s -X POST \
+     -H "Authorization: Bearer $GITHUB_TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     "https://api.github.com/repos/$OWNER_REPO/issues/<N>/comments" \
+     -d @- <<'JSON'
+   { "body": "## Automated review\n\n<paste the review-pr.sh summary table here>\n\n<screenshots / code notes / verdict>\n\n_Review produced by an AI agent (OpenHands)._" }
+   JSON
+   ```
+   Give a clear verdict: **approve**, **approve with nits**, or **request
+   changes** (list the blocking items).
+
+Everything below explains *why* and documents each piece in depth.
+
+
 ## Why runtime verification
 
 `cargo build`/`clippy`/`test` prove the code *compiles and its unit tests pass*.
@@ -34,29 +89,30 @@ Layers 2–3 need the game to expose BRP. That is gated behind an **opt-in
 ```toml
 # Cargo.toml
 [features]
-review = ["bevy/bevy_remote"]
+review = ["bevy/bevy_remote", "dep:bevy_brp_extras"]
+
+[dependencies]
+bevy_brp_extras = { version = "0.22", optional = true }
 ```
 
 ```rust
 // src/lib.rs — inside GamePlugin::build
 #[cfg(feature = "review")]
-app.add_plugins((
-    bevy::remote::RemotePlugin::default(),
-    bevy::remote::http::RemoteHttpPlugin::default(), // 127.0.0.1:15702
-));
+app.add_plugins(bevy_brp_extras::BrpExtrasPlugin::default());
 ```
 
-Build/run it yourself with `cargo run --features review`, then talk to it with
-`curl`, [`bevy_brp_mcp`](https://github.com/natepiano/bevy_brp), or any BRP
-client. This bevy_remote (0.19) uses the `world.*` JSON-RPC method namespace
+`BrpExtrasPlugin` adds the core `RemotePlugin` + `RemoteHttpPlugin` itself
+(serving BRP on `127.0.0.1:15702`) and *also* registers the `brp_extras/*`
+methods. Build/run it yourself with `cargo run --features review`, then talk to
+it with `curl`, [`bevy_brp_mcp`](https://github.com/natepiano/bevy_brp), or any
+BRP client. This bevy_remote (0.19) uses the `world.*` JSON-RPC method namespace
 (`world.query`, `world.list_resources`, `world.get_resources`, `rpc.discover`, …).
 
-The `review` feature also pulls in
-[`bevy_brp_extras`](https://crates.io/crates/bevy_brp_extras), which adds
-`brp_extras/*` methods on top of core BRP — most usefully **in-engine viewport
-screenshots** (`brp_extras/screenshot`) and **input simulation**
-(`brp_extras/send_keys`). Because the frame is rendered by Bevy itself, this
-works under the sandbox's software renderer with no external screenshot tool.
+`bevy_brp_extras` adds `brp_extras/*` methods on top of core BRP — most usefully
+**in-engine viewport screenshots** (`brp_extras/screenshot`), **input
+simulation** (`brp_extras/send_keys`), and a clean **`brp_extras/shutdown`**.
+Because the frame is rendered by Bevy itself, screenshots work under the
+sandbox's software renderer with no external screenshot tool.
 
 ## Seeing the world — screenshots & walkthroughs
 
@@ -146,11 +202,35 @@ Keep such reflection additions small and behind normal code (they're cheap and
 also help the editor/inspector), or gate them behind `review` if you'd rather
 not register them in shipped builds.
 
+## Interpreting a failure
+
+Each layer fails loudly and the pipeline stops there. What a `FAIL` means:
+
+| Symptom (from the output) | Likely cause | What to do |
+|---------------------------|--------------|------------|
+| `ERROR: working tree has uncommitted changes` | You ran a PR/branch review with a dirty tree | Commit or `git stash --include-untracked`, then re-run (or use `--worktree` to review the tree as-is). |
+| `ERROR: after checkout HEAD is … but expected …` | Checkout didn't land on the PR commit | Rare; ensure the tree is clean and the fetch succeeded, then re-run. The script aborts here rather than review the wrong code. |
+| `FAIL build --features review` / gate `cargo` error | Compile error, clippy lint, failing unit test, or wasm-only break | Read the quoted error; it's a real regression. Request changes with the file/line. |
+| `FAIL game booted (process died)` | Panic or startup error before BRP came up | The script prints the last log lines; look for `panicked at …`. Real crash → request changes. |
+| `FAIL BRP endpoint reachable` | Game ran but BRP never answered | Usually the port is busy (another `--features review` game still running — see below) or boot was slow. Kill stray games, or raise `BRP_BOOT_SECONDS`, and re-run. |
+| `FAIL no panic during run` | A panic appeared in the log after boot | Inspect the panic; request changes. |
+| `FAIL entities … (got X)` | The world doesn't match the expectation | Decide: is it a **real regression** (the PR broke/removed something) → request changes; or are the **expectations stale** (the PR intentionally changed counts and updated/should update the expectations file) → have the PR ship a corrected expectations file. |
+| `FAIL entities … (query error …)` | The type path isn't registered/reflected, or is misspelled | Check the fully-qualified path; a *game* type must `#[derive(Reflect)]` + `register_type()` to be queryable (see below). |
+| `FAIL resource_exists …` | Resource missing or not reflected | Same as above — real absence vs. not-registered. |
+
+A green run means: it builds on every target, the gate is clean, it boots and
+runs without panicking, and the live world matches the declared intent. It does
+**not** certify code quality — always pair it with a human/agent read of the
+diff.
+
 ## Environment notes (this sandbox)
 
 - No GPU/display: `~/workspace/start_bevy_display.sh` starts Xvfb on `:97`;
   the game uses Mesa software rendering (llvmpipe/lavapipe). The scripts start
   it for you and set `DISPLAY`/`XDG_RUNTIME_DIR`.
+- **One review game at a time.** BRP binds a fixed port (`15702`), so only one
+  `--features review` game can run at once. If a run leaves one behind, stop it
+  with `pkill -f 'target/debug/bevy_game'` before the next review.
 - Harmless `wgpu_hal::vulkan` / `drm` / ALSA warnings are expected and ignored;
   only real panics/`ERROR`s fail the smoke layer.
 - `curl` + `jq` are used for BRP; the first `--features review` build compiles

@@ -36,7 +36,7 @@ MODE="pr"
 TARGET=""
 EXPECT_FILE=""
 
-usage() { sed -n '2,32p' "$0"; exit 2; }
+usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 case "${1:-}" in
     --branch)   MODE="branch";   TARGET="${2:-}"; EXPECT_FILE="${3:-}"; [ -n "$TARGET" ] || usage ;;
@@ -66,18 +66,48 @@ origin_slug() {
 }
 
 # --- Check out the code under review (unless reviewing the working tree). ----
+require_clean_tree() {
+    # A dirty tree makes `git checkout` abort; without this guard the review
+    # would silently run against the wrong commit and report a false result.
+    if [ -n "$(git status --porcelain)" ]; then
+        log "ERROR: working tree has uncommitted changes, so the PR/branch cannot"
+        log "       be checked out cleanly. Commit or stash them first:"
+        log "         git stash --include-untracked   # then re-run"
+        git status --short >&2
+        exit 1
+    fi
+}
+
+# Move HEAD onto $2 as branch $1, aborting the whole review if the checkout
+# fails or lands on the wrong commit (never let a bad checkout look like a pass).
+checkout_to() { # branch_name, committish
+    local branch="$1" want="$2" want_sha got_sha
+    want_sha="$(git rev-parse --verify "$want")" || { log "ERROR: cannot resolve $want"; exit 1; }
+    if ! git checkout -q -B "$branch" "$want"; then
+        log "ERROR: git checkout of $want failed."
+        exit 1
+    fi
+    got_sha="$(git rev-parse --verify HEAD)"
+    if [ "$got_sha" != "$want_sha" ]; then
+        log "ERROR: after checkout HEAD is $got_sha but expected $want_sha."
+        exit 1
+    fi
+}
+
 checkout_target() {
     case "$MODE" in
         worktree)
             log "Reviewing the current working tree ($ORIGINAL_REF)."
             ;;
         branch)
+            require_clean_tree
             log "Checking out branch '$TARGET'…"
-            git fetch -q origin "$TARGET"
+            git fetch -q origin "$TARGET" || { log "ERROR: git fetch origin $TARGET failed."; exit 1; }
             CHECKED_OUT="review/$TARGET"
-            git checkout -q -B "$CHECKED_OUT" "origin/$TARGET"
+            checkout_to "$CHECKED_OUT" "origin/$TARGET"
             ;;
         pr)
+            require_clean_tree
             local slug; slug="$(origin_slug)"
             log "Fetching PR #$TARGET from $slug via GitHub API…"
             local auth=(); [ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
@@ -91,9 +121,9 @@ checkout_target() {
             fi
             log "PR #$TARGET head branch: $head_ref"
             # `refs/pull/N/head` works even for forks.
-            git fetch -q origin "pull/$TARGET/head"
+            git fetch -q origin "pull/$TARGET/head" || { log "ERROR: git fetch pull/$TARGET/head failed."; exit 1; }
             CHECKED_OUT="review/pr-$TARGET"
-            git checkout -q -B "$CHECKED_OUT" FETCH_HEAD
+            checkout_to "$CHECKED_OUT" FETCH_HEAD
             ;;
     esac
 }
