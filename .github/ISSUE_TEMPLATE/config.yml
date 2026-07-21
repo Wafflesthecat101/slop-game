@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Game design & roadmap
+    url: https://github.com/Wafflesthecat101/slop-game/blob/main/docs/GAME_DESIGN.md
+    about: Read the vision, design pillars, and roadmap before proposing work.
+  - name: Contributing guide
+    url: https://github.com/Wafflesthecat101/slop-game/blob/main/docs/CONTRIBUTING.md
+    about: How to work in parallel without merge conflicts, and the build/test/lint gate.

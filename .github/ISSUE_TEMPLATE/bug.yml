@@ -1,0 +1,33 @@
+name: "🐞 Bug report"
+description: Something isn't working as intended.
+title: "[bug] "
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Native (OS) or Web/WASM (browser), Bevy version, commit SHA.
+      placeholder: "Linux native, Bevy 0.19, commit abc1234"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Relevant console output (ignore the known harmless wgpu_hal/ALSA sandbox errors from AGENTS.md).

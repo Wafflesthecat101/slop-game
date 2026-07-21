@@ -1,0 +1,55 @@
+name: "🎮 Gameplay / feature task"
+description: A scoped unit of work for building the game (ideal for a single contributor/agent).
+title: "[feat] "
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a task! Keep it **scoped to one concept** so it can
+        be built in parallel with other work. See
+        [CONTRIBUTING](../blob/main/docs/CONTRIBUTING.md) and
+        [GAME_DESIGN](../blob/main/docs/GAME_DESIGN.md).
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / why
+      description: What player experience does this create? Which design pillar (P1–P4) and roadmap phase does it serve?
+      placeholder: "Serves P2 (the world reacts) and Phase 1. Right now beacons just vanish..."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: A checklist a reviewer can verify.
+      value: |
+        - [ ] 
+        - [ ] 
+        - [ ] Build gate passes (`fmt`, `clippy -D warnings`, `test`, wasm `check`)
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files likely touched
+      description: List modules/files so parallel work can be de-conflicted. Prefer a NEW module for a new concept; keep `src/lib.rs` edits to the one plugin-registration line.
+      placeholder: "New: src/daynight.rs. Edit: src/lib.rs (add one plugin line)."
+    validations:
+      required: true
+  - type: input
+    id: deps
+    attributes:
+      label: Dependencies / blocked by
+      description: Issue numbers this depends on, if any.
+      placeholder: "Blocked by #1 (state machine)"
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      options:
+        - "difficulty: starter"
+        - "difficulty: intermediate"
+        - "difficulty: advanced"
+    validations:
+      required: true
