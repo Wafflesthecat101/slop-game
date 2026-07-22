@@ -79,6 +79,11 @@ rand = { version = "0.10" }
 # Derive-based (de)serialization for persisting user `Settings` (save/load).
 serde = { version = "1", features = ["derive"] }
 
+# Save-file format for persisting world progress + settings (issue #6). JSON
+# is tiny, dependency-light and human-readable; shared by the native file path
+# and the WASM localStorage path.
+serde_json = "1"
+
 # Review-only (see the `review` feature): extra BRP methods — in-engine
 # viewport screenshots, input simulation, clean shutdown. `optional` so it is
 # only compiled when `--features review` is set; never in a shipped build.
@@ -95,6 +100,9 @@ log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"
 # (no `--cfg getrandom_backend=...` rustflag needed, unlike 0.3).
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.4", features = ["wasm_js"] }
+# Browser `localStorage` access for the WASM save path (issue #6): the
+# `Window` + `Storage` features expose `window().local_storage()`.
+web-sys = { version = "0.3", features = ["Window", "Storage"] }
 
 [build-dependencies]
 embed-resource = "3"

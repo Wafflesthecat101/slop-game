@@ -30,6 +30,7 @@ mod lantern;
 mod menu;
 mod player;
 mod reawaken;
+mod save;
 mod settings;
 mod states;
 mod terrain;
@@ -45,6 +46,7 @@ impl Plugin for GamePlugin {
         app.add_plugins((
             states::StatePlugin,
             settings::SettingsPlugin,
+            save::SavePlugin,
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
