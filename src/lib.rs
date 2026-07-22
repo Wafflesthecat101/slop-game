@@ -24,6 +24,7 @@
 mod beacons;
 mod hud;
 mod player;
+mod reawaken;
 mod states;
 mod terrain;
 mod world;
@@ -40,6 +41,7 @@ impl Plugin for GamePlugin {
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
+            reawaken::ReawakenPlugin,
             hud::HudPlugin,
         ));
 
