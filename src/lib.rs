@@ -23,6 +23,7 @@
 
 mod beacons;
 mod hud;
+mod menu;
 mod player;
 mod states;
 mod terrain;
@@ -41,6 +42,7 @@ impl Plugin for GamePlugin {
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
             hud::HudPlugin,
+            menu::MenuPlugin,
         ));
 
         // Review-only: expose the Bevy Remote Protocol so a reviewer/tool can

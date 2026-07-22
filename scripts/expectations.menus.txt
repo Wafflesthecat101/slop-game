@@ -1,0 +1,19 @@
+# Runtime expectations for the menu system (issues #3 + #4), checked against
+# the live ECS via the Bevy Remote Protocol by scripts/brp-verify.sh.
+#
+# The game now boots into GameState::MainMenu, so these assertions describe the
+# *title screen* state. The world itself is still built once at Startup (camera,
+# beacons, sun, atmosphere), so the baseline world invariants from
+# expectations.default.txt still hold while the menu is up.
+
+# --- Baseline world (unchanged by this PR; built at Startup) ---------------
+entities bevy_camera::components::Camera3d eq 1
+entities bevy_light::point_light::PointLight eq 12
+entities bevy_light::directional_light::DirectionalLight ge 1
+resource_exists bevy_camera::clear_color::ClearColor
+resource_exists bevy_light::ambient_light::GlobalAmbientLight
+
+# --- Main menu UI (issue #3) ------------------------------------------------
+# On boot the game lands in MainMenu, which spawns the Play / Settings / Quit
+# buttons (3 on native). Confirms the menu UI is actually present at runtime.
+entities bevy_ui::widget::button::Button eq 3
