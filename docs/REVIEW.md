@@ -92,6 +92,25 @@ PRs/forks whose commit doesn't contain these scripts — you always review with
 > **SKIP**, not FAIL, and the overall result reads *PASS (gate only)*. Rebase
 > such a PR onto a `main` that has the feature to enable full runtime checks.
 
+### These layers also run automatically in CI
+
+Every push and pull request runs the whole pipeline in GitHub Actions
+(`.github/workflows/ci.yml`) — no agent, no human trigger needed:
+
+| Job | Covers |
+|-----|--------|
+| `test` (Windows/macOS/Linux) + `all-doc-tests` | unit + doc tests (static layer) |
+| `lint` | `clippy -D warnings` + `fmt --check` (static layer) |
+| `wasm-check` | `cargo check --target wasm32-unknown-unknown` (the GitHub Pages deploy target) |
+| `runtime-verify` | builds `--features review`, boots the game headlessly under Xvfb + software Vulkan (lavapipe), and runs `scripts/brp-verify.sh scripts/expectations.default.txt` — i.e. **layers 2–3 above** |
+
+So the runtime intent checks are enforced on every PR as required status
+checks, not just when someone runs `review-pr.sh` by hand. Making these checks
+**required** in branch protection lets GitHub's native auto-merge merge a PR
+only once the live-ECS assertions pass. A gameplay PR that changes the expected
+world should update `scripts/expectations.default.txt` (or add its own file and
+point the `runtime-verify` job at it) in the same PR.
+
 ## The `review` cargo feature (BRP)
 
 Layers 2–3 need the game to expose BRP. That is gated behind an **opt-in

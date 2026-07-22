@@ -72,3 +72,66 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -Dwarnings
       - name: Check format
         run: cargo fmt --all -- --check
+
+  # Matches the GitHub Pages deploy target: the game must also type-check for
+  # WebAssembly, which catches wasm-only breakage (getrandom backend, etc.)
+  # that the native jobs above miss. Mirrors the local
+  # `cargo check --target wasm32-unknown-unknown` gate in CONTRIBUTING.md.
+  wasm-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ubuntu-latest-cargo-wasm-${{ hashFiles('**/Cargo.toml') }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - name: Install alsa and udev
+        run: sudo apt-get update; sudo apt-get install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev
+      - name: Check wasm build
+        run: cargo check -p bevy_game --target wasm32-unknown-unknown
+
+  # Runtime verification: build the game with the opt-in `review` feature (which
+  # exposes the Bevy Remote Protocol), boot it headlessly under Xvfb + software
+  # rendering, and assert facts about the *live* ECS world via BRP — proving the
+  # change actually runs and spawns the intended world, not just that it
+  # compiles. This is the CI form of scripts/brp-verify.sh; see docs/REVIEW.md.
+  runtime-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ubuntu-latest-cargo-review-${{ hashFiles('**/Cargo.toml') }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install deps (build + headless GPU/display + jq)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ pkg-config libx11-dev libasound2-dev \
+            libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev \
+            xvfb jq mesa-vulkan-drivers libgl1-mesa-dri vulkan-tools
+      - name: Runtime BRP verification
+        env:
+          # Force software rendering: CI runners have no GPU. lavapipe is Mesa's
+          # software Vulkan implementation; llvmpipe is the software GL fallback.
+          WGPU_BACKEND: vulkan
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          # The world's spawn systems need a few frames; give BRP time to settle.
+          BRP_BOOT_SECONDS: "10"
+        run: xvfb-run -a -s "-screen 0 1280x720x24" scripts/brp-verify.sh scripts/expectations.default.txt

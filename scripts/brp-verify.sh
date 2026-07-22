@@ -38,7 +38,10 @@ cd "$REPO_ROOT"
 
 EXPECT_FILE="${1:-scripts/expectations.default.txt}"
 BRP_URL="http://127.0.0.1:15702"
-DISPLAY_NUM=":97"
+# Sandbox default display is :97 via start_bevy_display.sh. In CI there is no
+# such script; the workflow runs us under `xvfb-run`, which exports its own
+# DISPLAY — so respect an already-set DISPLAY and only fall back to :97.
+DISPLAY_NUM="${BEVY_DISPLAY:-:97}"
 START_DISPLAY="$HOME/workspace/start_bevy_display.sh"
 BOOT_SECONDS="${BRP_BOOT_SECONDS:-8}"    # give the world a few frames to spawn
 GAME_LOG="$(mktemp -t brp-game.XXXXXX.log)"
@@ -95,8 +98,11 @@ fi
 ln -sfn ../../assets target/debug/assets 2>/dev/null || true
 
 # --- 2. Bring up the headless display and launch the game. ------------------
+# In the sandbox, start_bevy_display.sh provides Xvfb on :97. In CI the
+# workflow already runs us under `xvfb-run` (DISPLAY is set), so this script is
+# absent and skipped, and we keep the display xvfb-run gave us.
 if [ -x "$START_DISPLAY" ]; then bash "$START_DISPLAY" >/dev/null 2>&1 || true; fi
-export DISPLAY="$DISPLAY_NUM"
+export DISPLAY="${DISPLAY:-$DISPLAY_NUM}"
 export XDG_RUNTIME_DIR="/tmp/bevy-xdg-runtime-$(id -u)"
 mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
 
