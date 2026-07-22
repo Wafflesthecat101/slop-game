@@ -1,0 +1,23 @@
+# Runtime expectations for the world-reawakening plugin (#12), checked against
+# the live ECS via the Bevy Remote Protocol by scripts/brp-verify.sh.
+#
+# The reawakening plugin drives atmosphere (fog + ambient + colour grade) from
+# Progress::fraction(); this file asserts the components/resources it reads and
+# writes are actually live in the running world. It deliberately does NOT touch
+# the sun (DirectionalLight) or sky (ClearColor) — those are owned by the
+# day/night plugin (#11) — so the baseline invariants for them are kept here
+# unchanged to prove reawakening didn't disturb them.
+
+# Baseline world invariants (unchanged by this plugin).
+entities bevy_camera::components::Camera3d eq 1
+entities bevy_light::point_light::PointLight eq 12
+entities bevy_light::directional_light::DirectionalLight ge 1
+resource_exists bevy_camera::clear_color::ClearColor
+
+# The ambient light this plugin drives is a live, readable resource.
+resource_exists bevy_light::ambient_light::GlobalAmbientLight
+
+# The camera carries the DistanceFog this plugin drives (set in player.rs) and
+# the ColorGrading it inserts for the global saturation/warmth grade.
+entities bevy_pbr::fog::DistanceFog eq 1
+entities bevy_render::view::ColorGrading eq 1
