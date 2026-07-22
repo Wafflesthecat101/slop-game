@@ -112,6 +112,24 @@ each bump; `Cargo.lock` reflects it). Notes for future updates:
   was also trimmed to the 3D/UI set (no `2d_*`, `scene`, `picking`,
   `sysinfo_plugin`; added `tonemapping_luts`). Re-add any of these only if a
   feature actually needs them.
+  - **2026-07-22 (issue #7):** audio infra was **re-added** — this reverses the
+    "no audio" note above, but *not* by bringing back `bevy_kira_audio`. Instead
+    we re-enabled Bevy's **built-in** audio via its cargo features: added
+    `"bevy_audio"` (the `AudioPlugin` + rodio backend, auto-wired into
+    `DefaultPlugins` by `default_app`) and the `"wav"` decoder to the `bevy`
+    feature list in `Cargo.toml`. Built-in audio was preferred over a new heavy
+    crate for minimal footprint. The placeholder smoke-test asset is a tiny
+    440 Hz sine committed at `assets/audio/rekindle.wav` (generated with
+    Python's stdlib `wave` module since neither `ffmpeg`/`libvorbis` nor `sox`
+    is available in this sandbox — hence `wav`, not `vorbis`/`.ogg`). The new
+    `src/audio.rs` `AudioPlugin` exposes `play_sfx` (one-shot, despawns) and
+    `play_music` (looping), both scaling `Volume::Linear` by the user's
+    `Settings` (master × sfx / master × music, clamped); a smoke-test system
+    plays `rekindle.wav` on each `ShrineLit` message. **WASM caveat:** Bevy's
+    built-in audio compiles and runs on `wasm32-unknown-unknown` (verified with
+    `cargo check --target wasm32-unknown-unknown`); it uses the Web Audio
+    backend there. The sandbox has no audio device, so native runs still log
+    harmless ALSA errors — playback is a no-op but everything still runs.
 - `rand` is pinned to the same major version Bevy pulls in transitively
   (via `bevy_math`) so only one copy gets compiled — check
   `cargo tree -i rand` after bumping either `bevy` or `rand` to make sure
