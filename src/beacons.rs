@@ -107,11 +107,17 @@ pub struct RekindleRequest(pub Entity);
 #[derive(Component)]
 pub struct Shrine {
     pub lit: bool,
+    /// Stable identifier: the shrine's spawn index. Placement is deterministic
+    /// (fixed-seed `pick_hilltops`), so this index is the same every run and is
+    /// what the save system ([`crate::save`]) persists to remember which
+    /// shrines have been rekindled.
+    pub index: u32,
 }
 
-/// The floating orb child, animated by `animate_orbs`.
+/// The floating orb child, animated by `animate_orbs`. Public so the save
+/// system can filter for orb materials when re-lighting loaded shrines.
 #[derive(Component)]
-struct Orb {
+pub struct Orb {
     /// Per-orb phase offset so they don't all bob in lockstep.
     phase: f32,
 }
@@ -134,7 +140,7 @@ fn spawn_shrines(
     let positions = pick_hilltops();
     progress.total = positions.len() as u32;
 
-    for base in positions {
+    for (index, base) in positions.into_iter().enumerate() {
         // Each shrine gets its own dormant orb material so rekindling one can
         // brighten just that orb (the mesh is still shared; only the tiny
         // material is per-shrine).
@@ -145,7 +151,10 @@ fn spawn_shrines(
         });
         commands
             .spawn((
-                Shrine { lit: false },
+                Shrine {
+                    lit: false,
+                    index: index as u32,
+                },
                 Transform::from_translation(base),
                 Visibility::default(),
                 Mesh3d(pillar_mesh.clone()),
@@ -235,28 +244,55 @@ fn rekindle_shrines(
         let Ok((mut shrine, children)) = shrines.get_mut(*entity) else {
             continue;
         };
-        if shrine.lit {
-            continue;
-        }
-
-        shrine.lit = true;
-        progress.lit += 1;
-        lit_writer.write(ShrineLit);
-
-        // Brighten + warm this shrine's own orb material and its point light.
-        for child in children.iter() {
-            if let Ok(material) = orbs.get(child)
-                && let Some(mut mat) = materials.get_mut(&material.0)
-            {
-                mat.emissive = LIT_EMISSIVE;
-            }
-            if let Ok(mut light) = lights.get_mut(child) {
-                light.color = Color::srgb(1.0, 0.85, 0.55);
-                light.intensity = 320_000.0;
-                light.range = 34.0;
-            }
+        if light_shrine(
+            &mut shrine,
+            children,
+            &mut progress,
+            &mut materials,
+            &orbs,
+            &mut lights,
+        ) {
+            lit_writer.write(ShrineLit);
         }
     }
+}
+
+/// Mark a shrine lit and apply its rekindled look — brighten and warm the orb
+/// material and turn its point light up — bumping [`Progress`]. Returns `true`
+/// if the shrine was newly lit, `false` if it was already lit (idempotent).
+///
+/// Shared by the player rekindle (`rekindle_shrines`, which then emits
+/// [`ShrineLit`]) and the save system's load-time hook ([`crate::save`], which
+/// applies persisted progress *silently* — no `ShrineLit`, so loading a saved
+/// world replays no SFX or feedback).
+pub fn light_shrine(
+    shrine: &mut Shrine,
+    children: &Children,
+    progress: &mut Progress,
+    materials: &mut Assets<StandardMaterial>,
+    orbs: &Query<&MeshMaterial3d<StandardMaterial>, With<Orb>>,
+    lights: &mut Query<&mut PointLight>,
+) -> bool {
+    if shrine.lit {
+        return false;
+    }
+
+    shrine.lit = true;
+    progress.lit += 1;
+
+    for child in children.iter() {
+        if let Ok(material) = orbs.get(child)
+            && let Some(mut mat) = materials.get_mut(&material.0)
+        {
+            mat.emissive = LIT_EMISSIVE;
+        }
+        if let Ok(mut light) = lights.get_mut(child) {
+            light.color = Color::srgb(1.0, 0.85, 0.55);
+            light.intensity = 320_000.0;
+            light.range = 34.0;
+        }
+    }
+    true
 }
 
 #[cfg(test)]
