@@ -28,6 +28,7 @@ mod lantern;
 mod menu;
 mod player;
 mod reawaken;
+mod settings;
 mod states;
 mod terrain;
 mod world;
@@ -41,6 +42,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             states::StatePlugin,
+            settings::SettingsPlugin,
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
