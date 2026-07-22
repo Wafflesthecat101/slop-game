@@ -21,6 +21,7 @@
 //! The terrain shape lives in [`terrain`] as a pure function shared by the
 //! world mesh and the player, so what you see is always what you walk on.
 
+pub mod audio;
 mod beacons;
 mod daynight;
 mod hud;
@@ -47,6 +48,7 @@ impl Plugin for GamePlugin {
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
+            audio::AudioPlugin,
             interact::InteractPlugin,
             daynight::DayNightPlugin,
             lantern::LanternPlugin,
