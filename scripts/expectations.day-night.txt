@@ -1,0 +1,23 @@
+# Runtime expectations for the day/night cycle (#11), checked against the live
+# ECS via the Bevy Remote Protocol by scripts/brp-verify.sh.
+#
+# The day/night plugin does not add or remove entities — it only *drives* the
+# existing sun (DirectionalLight) and the sky (ClearColor resource) each frame.
+# So the world's structure is identical to the baseline; these assertions
+# confirm the two things this plugin steers are present and queryable at
+# runtime. (That the values actually animate over the cycle is covered by the
+# pure `sky_state` unit tests in src/daynight.rs.)
+
+# Exactly one first-person camera (the player).
+entities bevy_camera::components::Camera3d eq 1
+
+# The 12 shrine landmarks each carry a PointLight on their orb.
+entities bevy_light::point_light::PointLight eq 12
+
+# The single sun this plugin drives (angle/colour/intensity).
+entities bevy_light::directional_light::DirectionalLight ge 1
+
+# The sky colour this plugin drives, plus the ambient light it deliberately
+# leaves to the sibling reawakening plugin.
+resource_exists bevy_camera::clear_color::ClearColor
+resource_exists bevy_light::ambient_light::GlobalAmbientLight

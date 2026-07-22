@@ -22,6 +22,7 @@
 //! world mesh and the player, so what you see is always what you walk on.
 
 mod beacons;
+mod daynight;
 mod hud;
 mod lantern;
 mod player;
@@ -41,6 +42,7 @@ impl Plugin for GamePlugin {
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
+            daynight::DayNightPlugin,
             lantern::LanternPlugin,
             hud::HudPlugin,
         ));
