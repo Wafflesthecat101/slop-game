@@ -23,6 +23,7 @@
 
 mod beacons;
 mod hud;
+mod lantern;
 mod player;
 mod states;
 mod terrain;
@@ -40,6 +41,7 @@ impl Plugin for GamePlugin {
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
+            lantern::LanternPlugin,
             hud::HudPlugin,
         ));
 

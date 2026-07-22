@@ -1,0 +1,23 @@
+# Runtime expectations for the carried-lantern feature (issue #13), checked
+# against the live ECS via the Bevy Remote Protocol by scripts/brp-verify.sh.
+#
+# Extends the baseline invariants in expectations.default.txt with the one
+# assertion that proves the lantern actually attached at runtime.
+
+# The player camera (parent the lantern hangs under).
+entities bevy_camera::components::Camera3d eq 1
+
+# Exactly one carried lantern light — a single SpotLight, per pillar P4
+# (cheap: one light). It is a child of the camera and is the only spot light
+# in the world.
+entities bevy_light::spot_light::SpotLight eq 1
+
+# The 12 shrine/beacon PointLights are unaffected by the lantern.
+entities bevy_light::point_light::PointLight eq 12
+
+# A single sun still lights the scene.
+entities bevy_light::directional_light::DirectionalLight ge 1
+
+# Atmosphere resources still present.
+resource_exists bevy_camera::clear_color::ClearColor
+resource_exists bevy_light::ambient_light::GlobalAmbientLight
