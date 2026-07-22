@@ -74,6 +74,9 @@ bevy = { version = "0.19.0", default-features = false, features = [
 # deterministic procedural scattering of world objects.
 rand = { version = "0.10" }
 
+# Derive-based (de)serialization for persisting user `Settings` (save/load).
+serde = { version = "1", features = ["derive"] }
+
 # Review-only (see the `review` feature): extra BRP methods — in-engine
 # viewport screenshots, input simulation, clean shutdown. `optional` so it is
 # only compiled when `--features review` is set; never in a shipped build.

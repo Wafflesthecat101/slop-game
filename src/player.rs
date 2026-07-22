@@ -6,6 +6,7 @@
 //! one component (rather than spread across resources) makes the movement
 //! system a single, self-contained query.
 
+use crate::settings::Settings;
 use crate::states::GameState;
 use crate::terrain;
 use crate::world::SKY_COLOR;
@@ -22,7 +23,6 @@ const WALK_SPEED: f32 = 12.0;
 const RUN_SPEED: f32 = 26.0;
 const GRAVITY: f32 = 24.0;
 const JUMP_SPEED: f32 = 9.0;
-const MOUSE_SENSITIVITY: f32 = 0.0022;
 
 /// How quickly horizontal velocity approaches the target (1/s). Higher = more
 /// responsive/snappy; lower = more floaty. Tuned for weighty-but-crisp feel.
@@ -30,9 +30,8 @@ const ACCEL: f32 = 12.0;
 /// Head-bob amount (metres) and cadence (radians travelled per metre walked).
 const BOB_AMPLITUDE: f32 = 0.09;
 const BOB_FREQUENCY: f32 = 1.15;
-/// Field-of-view (radians) when walking vs. sprinting; the kick sells speed.
-const FOV_WALK: f32 = 1.20;
-const FOV_RUN: f32 = 1.40;
+/// How fast the FOV eases toward its walk/sprint target (1/s). The target
+/// values themselves now live in [`Settings`].
 const FOV_LERP: f32 = 8.0;
 
 /// Horizontal radius of the player's body, used for collision push-out.
@@ -166,6 +165,7 @@ fn release_cursor(
 
 fn mouse_look(
     motion: Res<AccumulatedMouseMotion>,
+    settings: Res<Settings>,
     window: Single<(&Window, &CursorOptions), With<PrimaryWindow>>,
     mut player: Single<(&mut Player, &mut Transform)>,
 ) {
@@ -177,8 +177,8 @@ fn mouse_look(
         return;
     }
     let (player, transform) = &mut *player;
-    player.yaw -= motion.delta.x * MOUSE_SENSITIVITY;
-    player.pitch = (player.pitch - motion.delta.y * MOUSE_SENSITIVITY).clamp(-1.54, 1.54); // just under +/- 90 degrees
+    player.yaw -= motion.delta.x * settings.mouse_sensitivity;
+    player.pitch = (player.pitch - motion.delta.y * settings.mouse_sensitivity).clamp(-1.54, 1.54); // just under +/- 90 degrees
     transform.rotation = Quat::from_euler(EulerRot::YXZ, player.yaw, player.pitch, 0.0);
 }
 
@@ -287,11 +287,16 @@ fn move_player(
 /// walking — a classic, cheap "sense of speed" cue.
 fn sprint_fov(
     time: Res<Time>,
+    settings: Res<Settings>,
     player: Single<&Player>,
     mut projection: Single<&mut Projection, With<Camera3d>>,
 ) {
     if let Projection::Perspective(persp) = projection.as_mut() {
-        let target = if player.sprinting { FOV_RUN } else { FOV_WALK };
+        let target = if player.sprinting {
+            settings.fov_run
+        } else {
+            settings.fov
+        };
         persp.fov = persp
             .fov
             .lerp(target, (FOV_LERP * time.delta_secs()).min(1.0));
