@@ -8,10 +8,10 @@
 //! `run_if(in_state(...))`, so entering [`GameState::Paused`] freezes movement,
 //! rekindling and orb animation without tearing anything down.
 //!
-//! Flow: start in [`GameState::Boot`], then advance to `Playing`. Until the
-//! main-menu issue (#3) lands there is no menu UI, so `Boot` transitions
-//! straight to `Playing`; #3 will insert `MainMenu` in between and add a Play
-//! button that drives `MainMenu → Playing`. `Esc` toggles `Playing ↔ Paused`.
+//! Flow: start in [`GameState::Boot`], which advances to [`GameState::MainMenu`]
+//! (the title screen, owned by [`crate::menu`]); the menu's Play button drives
+//! `MainMenu → Playing`. `Esc` toggles `Playing ↔ Paused`, and the pause menu's
+//! Main Menu button returns to `MainMenu`.
 //!
 //! Cursor grab is owned here for state transitions: entering `Playing` locks
 //! and hides the cursor; entering `Paused` (or `MainMenu`) frees it. This
@@ -25,15 +25,14 @@ use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 /// High-level game flow. Gameplay simulation only runs in [`Self::Playing`].
 #[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GameState {
-    /// One-frame entry state; immediately advances (to `MainMenu` once that
-    /// exists, to `Playing` for now).
+    /// One-frame entry state; immediately advances to `MainMenu`.
     #[default]
     Boot,
-    /// Title screen (owned by the main-menu issue #3). No UI yet.
+    /// Title screen (Play / Settings / Quit); UI owned by [`crate::menu`].
     MainMenu,
     /// Active gameplay: the world simulates and the player is in control.
     Playing,
-    /// Gameplay frozen; overlay owned by the pause-menu issue #4.
+    /// Gameplay frozen; translucent pause overlay owned by [`crate::menu`].
     Paused,
 }
 
@@ -42,7 +41,7 @@ pub struct StatePlugin;
 impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
-            .add_systems(Update, boot_to_playing.run_if(in_state(GameState::Boot)))
+            .add_systems(Update, boot_to_menu.run_if(in_state(GameState::Boot)))
             .add_systems(
                 Update,
                 toggle_pause
@@ -54,10 +53,10 @@ impl Plugin for StatePlugin {
     }
 }
 
-/// Placeholder boot step: with no main menu yet, drop straight into gameplay.
-/// The main-menu issue (#3) will retarget this to `MainMenu`.
-fn boot_to_playing(mut next: ResMut<NextState<GameState>>) {
-    next.set(GameState::Playing);
+/// Boot step: advance to the main menu (issue #3), which shows the title
+/// screen and a Play button that drives `MainMenu → Playing`.
+fn boot_to_menu(mut next: ResMut<NextState<GameState>>) {
+    next.set(GameState::MainMenu);
 }
 
 /// `Esc` toggles between playing and paused. In `Playing` it opens the pause

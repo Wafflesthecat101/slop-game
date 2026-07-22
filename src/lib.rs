@@ -25,6 +25,7 @@ mod beacons;
 mod daynight;
 mod hud;
 mod lantern;
+mod menu;
 mod player;
 mod reawaken;
 mod states;
@@ -47,6 +48,7 @@ impl Plugin for GamePlugin {
             lantern::LanternPlugin,
             reawaken::ReawakenPlugin,
             hud::HudPlugin,
+            menu::MenuPlugin,
         ));
 
         // Review-only: expose the Bevy Remote Protocol so a reviewer/tool can
