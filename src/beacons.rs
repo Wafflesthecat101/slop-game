@@ -30,7 +30,7 @@ use rand::{RngExt, SeedableRng};
 /// How many shrines to place in the world (the long-term goal).
 const SHRINE_COUNT: usize = 12;
 /// Player must get within this horizontal distance to rekindle a shrine.
-const REKINDLE_RADIUS: f32 = 4.0;
+pub const REKINDLE_RADIUS: f32 = 4.0;
 /// Shrines only spawn above this elevation, so they crown hilltops/vistas.
 const MIN_ELEVATION: f32 = 6.0;
 /// Keep shrines spread out so each is a distinct destination.
@@ -49,6 +49,7 @@ impl Plugin for BeaconsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Progress { lit: 0, total: 0 })
             .add_message::<ShrineLit>()
+            .add_message::<RekindleRequest>()
             .add_systems(Startup, spawn_shrines)
             .add_systems(
                 Update,
@@ -89,12 +90,23 @@ impl Progress {
 #[derive(Message)]
 pub struct ShrineLit;
 
+/// Request from the interaction plugin ([`crate::interact`]) to rekindle a
+/// specific dormant shrine — the deliberate "press E" trigger. [`beacons`]
+/// owns the *apply* logic (mark lit, bump [`Progress`], brighten the orb, emit
+/// [`ShrineLit`]) so proximity now only shows a prompt; it no longer lights
+/// shrines on its own.
+///
+/// [`beacons`]: crate::beacons
+#[derive(Message)]
+pub struct RekindleRequest(pub Entity);
+
 /// A shrine landmark. The glowing orb is a child entity. Starts `lit == false`
 /// (dormant) and flips to `true` once rekindled — it is never despawned, so
-/// its pillar collider stays solid throughout.
+/// its pillar collider stays solid throughout. Exposed so [`crate::interact`]
+/// can find the nearest dormant shrine to prompt for.
 #[derive(Component)]
-struct Shrine {
-    lit: bool,
+pub struct Shrine {
+    pub lit: bool,
 }
 
 /// The floating orb child, animated by `animate_orbs`.
@@ -203,26 +215,27 @@ fn animate_orbs(time: Res<Time>, mut orbs: Query<(&Orb, &mut Transform)>) {
     }
 }
 
-/// Rekindle any dormant shrine the player has walked close to (horizontal
-/// distance only, so you don't need to be at the orb's exact height). The
-/// shrine's orb brightens and warms and its light turns up; the shrine stays
-/// in the world. Emits [`ShrineLit`] and bumps [`Progress`].
+/// Apply the deliberate rekindle triggered by [`crate::interact`]: for each
+/// [`RekindleRequest`], if the named shrine is still dormant, brighten and warm
+/// its orb, turn its light up, mark it lit, bump [`Progress`] and emit
+/// [`ShrineLit`]. The shrine stays in the world. The proximity + key-press
+/// *trigger* lives in [`crate::interact`]; this system owns only the *apply*
+/// half of the contract, so downstream plugins (HUD, day/night, reawaken) are
+/// unchanged.
 fn rekindle_shrines(
+    mut requests: MessageReader<RekindleRequest>,
     mut progress: ResMut<Progress>,
     mut lit_writer: MessageWriter<ShrineLit>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    player: Single<&Transform, With<Camera3d>>,
-    mut shrines: Query<(&mut Shrine, &Transform, &Children)>,
+    mut shrines: Query<(&mut Shrine, &Children)>,
     orbs: Query<&MeshMaterial3d<StandardMaterial>, With<Orb>>,
     mut lights: Query<&mut PointLight>,
 ) {
-    let p = player.translation;
-    for (mut shrine, tf, children) in &mut shrines {
-        if shrine.lit {
+    for RekindleRequest(entity) in requests.read() {
+        let Ok((mut shrine, children)) = shrines.get_mut(*entity) else {
             continue;
-        }
-        let d = Vec2::new(tf.translation.x - p.x, tf.translation.z - p.z).length();
-        if d >= REKINDLE_RADIUS {
+        };
+        if shrine.lit {
             continue;
         }
 

@@ -24,6 +24,7 @@
 mod beacons;
 mod daynight;
 mod hud;
+mod interact;
 mod lantern;
 mod menu;
 mod player;
@@ -44,6 +45,7 @@ impl Plugin for GamePlugin {
             world::WorldPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
+            interact::InteractPlugin,
             daynight::DayNightPlugin,
             lantern::LanternPlugin,
             reawaken::ReawakenPlugin,
