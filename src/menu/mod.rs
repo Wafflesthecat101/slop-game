@@ -16,13 +16,13 @@
 
 mod main_menu;
 mod pause;
+mod settings;
 
 use crate::states::GameState;
 use bevy::prelude::*;
 
 /// Calm palette, keyed off `world::SKY_COLOR` (a soft blue). Buttons are a
-/// muted slate that brightens toward the sky on hover/press; the placeholder
-/// Settings button stays dim to read as unavailable.
+/// muted slate that brightens toward the sky on hover/press.
 const BUTTON_NORMAL: Color = Color::srgb(0.22, 0.28, 0.38);
 const BUTTON_HOVER: Color = Color::srgb(0.32, 0.41, 0.55);
 const BUTTON_PRESSED: Color = Color::srgb(0.44, 0.55, 0.72);
@@ -34,12 +34,16 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((main_menu::MainMenuPlugin, pause::PausePlugin))
-            .add_systems(
-                Update,
-                (button_visuals, button_actions)
-                    .run_if(in_state(GameState::MainMenu).or_else(in_state(GameState::Paused))),
-            );
+        app.add_plugins((
+            main_menu::MainMenuPlugin,
+            pause::PausePlugin,
+            settings::SettingsMenuPlugin,
+        ))
+        .add_systems(
+            Update,
+            (button_visuals, button_actions)
+                .run_if(in_state(GameState::MainMenu).or_else(in_state(GameState::Paused))),
+        );
     }
 }
 
@@ -53,8 +57,8 @@ enum MenuAction {
     Resume,
     /// Pause menu → back out to the title screen.
     ToMainMenu,
-    /// Placeholder: the settings screen is a separate future issue, so this
-    /// button is spawned disabled and does nothing when interacted with.
+    /// Open the settings screen (owned by [`settings`]), layered over the
+    /// current menu without changing [`GameState`].
     Settings,
     /// Quit the game (native only; not spawned on WASM).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
@@ -84,14 +88,14 @@ fn button_visuals(
     }
 }
 
-/// Run a clicked button's [`MenuAction`]. Disabled buttons are filtered out,
-/// so the placeholder Settings button is a no-op by construction.
+/// Run a clicked button's [`MenuAction`]. Disabled buttons are filtered out.
 fn button_actions(
     buttons: Query<
         (&Interaction, &MenuAction),
         (Changed<Interaction>, With<Button>, Without<Disabled>),
     >,
     mut next: ResMut<NextState<GameState>>,
+    mut settings_menu: ResMut<NextState<settings::SettingsMenu>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     for (interaction, action) in &buttons {
@@ -101,7 +105,7 @@ fn button_actions(
         match action {
             MenuAction::Play | MenuAction::Resume => next.set(GameState::Playing),
             MenuAction::ToMainMenu => next.set(GameState::MainMenu),
-            MenuAction::Settings => {} // placeholder — see MenuAction::Settings
+            MenuAction::Settings => settings_menu.set(settings::SettingsMenu::Open),
             MenuAction::Quit => {
                 exit.write(AppExit::Success);
             }
@@ -111,8 +115,11 @@ fn button_actions(
 
 /// Spawn a styled menu button as a child of `parent`. When `enabled` is false
 /// the button is dimmed and tagged [`Disabled`] so the shared systems ignore
-/// it (used for the placeholder Settings entry).
+/// it. The Settings entry is always enabled regardless of the caller's flag,
+/// so both menus' existing (previously placeholder) Settings buttons become
+/// live without editing those modules.
 fn spawn_button(parent: &mut ChildSpawnerCommands, label: &str, action: MenuAction, enabled: bool) {
+    let enabled = enabled || matches!(action, MenuAction::Settings);
     let (bg, fg) = if enabled {
         (BUTTON_NORMAL, TEXT_COLOR)
     } else {
