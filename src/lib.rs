@@ -49,24 +49,28 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            states::StatePlugin,
-            settings::SettingsPlugin,
-            save::SavePlugin,
-            world::WorldPlugin,
-            water::WaterPlugin,
-            player::PlayerPlugin,
-            beacons::BeaconsPlugin,
-            poi::PoiPlugin,
-            audio::AudioPlugin,
-            interact::InteractPlugin,
-            daynight::DayNightPlugin,
-            lantern::LanternPlugin,
-            reveal::RevealPlugin,
-            reawaken::ReawakenPlugin,
-            wildlife::WildlifePlugin,
-            hud::HudPlugin,
-            menu::MenuPlugin,
-            photo::PhotoPlugin,
+            (
+                states::StatePlugin,
+                settings::SettingsPlugin,
+                save::SavePlugin,
+                world::WorldPlugin,
+                water::WaterPlugin,
+                player::PlayerPlugin,
+                beacons::BeaconsPlugin,
+                poi::PoiPlugin,
+                audio::AudioPlugin,
+            ),
+            (
+                interact::InteractPlugin,
+                daynight::DayNightPlugin,
+                lantern::LanternPlugin,
+                reveal::RevealPlugin,
+                reawaken::ReawakenPlugin,
+                wildlife::WildlifePlugin,
+                hud::HudPlugin,
+                menu::MenuPlugin,
+                photo::PhotoPlugin,
+            ),
         ));
 
         // Review-only: expose the Bevy Remote Protocol so a reviewer/tool can
