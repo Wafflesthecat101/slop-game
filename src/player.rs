@@ -1,5 +1,6 @@
-//! First-person player: mouse look, WASD movement, gravity, jump, and
-//! ground-following against the shared [`crate::terrain`] heightfield.
+//! First-person player: mouse look, WASD movement, gravity, jump, climbing
+//! steep slopes, and ground-following against the shared [`crate::terrain`]
+//! heightfield.
 //!
 //! The player is a single camera entity carrying a [`Player`] component that
 //! stores its look angles and vertical velocity. Keeping all player state on
@@ -36,6 +37,21 @@ const FOV_LERP: f32 = 8.0;
 
 /// Horizontal radius of the player's body, used for collision push-out.
 const PLAYER_RADIUS: f32 = 0.5;
+
+/// Terrain whose upward-normal component (`terrain::normal(..).y`) is below this
+/// engages deliberate climbing: on it you slide gently unless you hold the climb
+/// key. Chosen so only the genuinely steepest terrain qualifies — gentle rolling
+/// hills still walk exactly as before.
+const STEEP_NORMAL_Y: f32 = 0.92;
+/// Width (in normal-`y`) of the smoothstep ramp below [`STEEP_NORMAL_Y`] over
+/// which the climb/slide response fades in, so steepness is never a hard on/off.
+const CLIMB_BAND: f32 = 0.05;
+/// Speed (m/s) travelled up a slope face while deliberately climbing — slow and
+/// steady, far below [`WALK_SPEED`], so ascent always feels controlled.
+const CLIMB_SPEED: f32 = 5.0;
+/// Gentle downhill drift speed (m/s) on steep ground when not climbing — the
+/// always-available, no-fail way back down.
+const SLIDE_SPEED: f32 = 6.0;
 
 pub struct PlayerPlugin;
 
@@ -182,6 +198,18 @@ fn mouse_look(
     transform.rotation = Quat::from_euler(EulerRot::YXZ, player.yaw, player.pitch, 0.0);
 }
 
+/// How strongly a slope with upward-normal component `normal_y` engages the
+/// climb/slide system: `0.0` on walkable ground, ramping up to `1.0` on the
+/// steepest climbable face. Steepness is derived purely from the `y` of
+/// [`crate::terrain::normal`]; ground at or above [`STEEP_NORMAL_Y`] walks
+/// normally (returns `0.0`), and the response fades in with a smoothstep over
+/// [`CLIMB_BAND`] so climbing is never a hard on/off. Multiply by
+/// [`CLIMB_SPEED`] for the actual controlled ascent speed.
+fn climb_engagement(normal_y: f32) -> f32 {
+    let t = ((STEEP_NORMAL_Y - normal_y) / CLIMB_BAND).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
 fn move_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -221,7 +249,28 @@ fn move_player(
     // Ease the horizontal velocity toward the desired velocity instead of
     // snapping to it — this is what gives movement weight (a short spin-up on
     // start and a glide on release) without a physics engine.
-    let target = wish.normalize_or_zero() * speed;
+    let mut target = wish.normalize_or_zero() * speed;
+
+    // Climbing / sliding on steep terrain. `terrain::normal` tells us how steep
+    // the ground is; only genuinely steep faces engage (see `climb_engagement`).
+    // There you either deliberately climb (hold the climb key while pushing into
+    // the slope) at a slow controlled rate, or — the always-available, no-fail
+    // escape — drift gently back downhill. The response is blended in by
+    // steepness so the transition from ordinary walking is seamless.
+    let normal = terrain::normal(transform.translation.x, transform.translation.z);
+    let engage = climb_engagement(normal.y);
+    let steep = engage > 0.0;
+    if steep {
+        let uphill = Vec2::new(-normal.x, -normal.z).normalize_or_zero();
+        let wish_uphill = Vec2::new(wish.x, wish.z).normalize_or_zero().dot(uphill);
+        let slope_target = if keys.pressed(KeyCode::Space) && wish_uphill > 0.0 {
+            uphill * (CLIMB_SPEED * wish_uphill)
+        } else {
+            Vec2::new(normal.x, normal.z).normalize_or_zero() * SLIDE_SPEED
+        };
+        target = target.lerp(Vec3::new(slope_target.x, 0.0, slope_target.y), engage);
+    }
+
     let t = (ACCEL * dt).min(1.0);
     player.velocity = player.velocity.lerp(target, t);
     transform.translation += player.velocity * dt;
@@ -261,7 +310,9 @@ fn move_player(
     if grounded {
         player.vertical_velocity = 0.0;
         transform.translation.y = ground;
-        if keys.just_pressed(KeyCode::Space) {
+        // On steep, climbable ground Space means "climb" (handled above), so it
+        // must not also fire a jump; you jump only from ordinary footing.
+        if !steep && keys.just_pressed(KeyCode::Space) {
             player.vertical_velocity = JUMP_SPEED;
         }
     } else {
@@ -300,5 +351,65 @@ fn sprint_fov(
         persp.fov = persp
             .fov
             .lerp(target, (FOV_LERP * time.delta_secs()).min(1.0));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::terrain;
+
+    #[test]
+    fn flat_ground_never_climbs() {
+        // A perfectly flat surface (normal straight up) and anything at or above
+        // the steepness threshold walks normally — no climb/slide engagement.
+        assert_eq!(climb_engagement(1.0), 0.0);
+        assert_eq!(climb_engagement(STEEP_NORMAL_Y), 0.0);
+        assert_eq!(climb_engagement(STEEP_NORMAL_Y + 0.01), 0.0);
+    }
+
+    #[test]
+    fn steep_ground_engages_and_ramps_in() {
+        // Just past the threshold the response is still (near) zero, then it
+        // grows monotonically as the slope steepens (smaller normal.y).
+        let just_steep = climb_engagement(STEEP_NORMAL_Y - 0.001);
+        assert!(just_steep > 0.0 && just_steep < 0.05);
+        let mid = climb_engagement(STEEP_NORMAL_Y - CLIMB_BAND * 0.5);
+        let steep = climb_engagement(STEEP_NORMAL_Y - CLIMB_BAND);
+        assert!(steep > mid && mid > just_steep);
+    }
+
+    #[test]
+    fn engagement_is_bounded_and_saturates() {
+        // Never leaves 0..=1, and the steepest possible ground saturates at 1
+        // so the controlled climb speed can never be exceeded.
+        for i in 0..=100 {
+            let e = climb_engagement(i as f32 / 100.0);
+            assert!((0.0..=1.0).contains(&e));
+        }
+        assert_eq!(climb_engagement(0.0), 1.0);
+        assert_eq!(climb_engagement(STEEP_NORMAL_Y - CLIMB_BAND), 1.0);
+    }
+
+    #[test]
+    fn climb_is_reachable_on_this_terrain() {
+        // The feature must actually engage somewhere on the map: the steepest
+        // terrain present should yield a substantial climb response, otherwise
+        // the threshold is mistuned and climbing is dead code.
+        let reach = terrain::HALF_SIZE - 5.0;
+        let mut best = 0.0f32;
+        let mut x = -reach;
+        while x <= reach {
+            let mut z = -reach;
+            while z <= reach {
+                best = best.max(climb_engagement(terrain::normal(x, z).y));
+                z += 2.0;
+            }
+            x += 2.0;
+        }
+        assert!(
+            best > 0.5,
+            "steepest terrain barely climbs (engagement {best})"
+        );
     }
 }
