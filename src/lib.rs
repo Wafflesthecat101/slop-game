@@ -29,6 +29,7 @@ mod interact;
 mod lantern;
 mod menu;
 mod player;
+mod poi;
 mod reawaken;
 mod save;
 mod settings;
@@ -52,6 +53,7 @@ impl Plugin for GamePlugin {
             water::WaterPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
+            poi::PoiPlugin,
             audio::AudioPlugin,
             interact::InteractPlugin,
             daynight::DayNightPlugin,
