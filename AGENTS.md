@@ -326,3 +326,16 @@ Guardrails that still apply:
    explicit approval from the maintainer.
 4. Server-side branch protection (if any) still governs whether a push is
    accepted; this note does not override GitHub's own rules.
+
+## Parallel-agent gotchas (learned 2026-07-23)
+
+- **`add_plugins` has a 16-element tuple limit.** Bevy only implements
+  `Plugins` for tuples up to 16. When many parallel PRs each add one plugin to
+  `GamePlugin`'s single `add_plugins((...))` tuple, each PR passes CI in
+  isolation (<=16) but the *combined* main can exceed 16 and fail to compile
+  (`the trait bound (...): Plugins<_> is not satisfied`). Fix: group the
+  plugins into nested tuples (Bevy flattens them). When adding a plugin, check
+  the current tuple length and keep each nested group <=16.
+- **Always re-run the full gate on `main` after merging a batch of PRs.** A set
+  of individually-green PRs can combine into a broken `main` (the tuple
+  overflow above is the canonical example). Per-PR green != merged-main green.
