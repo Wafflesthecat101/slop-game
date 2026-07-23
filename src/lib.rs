@@ -34,6 +34,7 @@ mod save;
 mod settings;
 mod states;
 mod terrain;
+mod water;
 mod world;
 
 use bevy::app::App;
@@ -48,6 +49,7 @@ impl Plugin for GamePlugin {
             settings::SettingsPlugin,
             save::SavePlugin,
             world::WorldPlugin,
+            water::WaterPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
             audio::AudioPlugin,
