@@ -37,6 +37,7 @@ mod settings;
 mod states;
 mod terrain;
 mod water;
+mod wildlife;
 mod world;
 
 use bevy::app::App;
@@ -61,6 +62,7 @@ impl Plugin for GamePlugin {
             lantern::LanternPlugin,
             reveal::RevealPlugin,
             reawaken::ReawakenPlugin,
+            wildlife::WildlifePlugin,
             hud::HudPlugin,
             menu::MenuPlugin,
         ));
