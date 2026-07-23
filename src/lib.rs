@@ -34,6 +34,7 @@ mod save;
 mod settings;
 mod states;
 mod terrain;
+mod wildlife;
 mod world;
 
 use bevy::app::App;
@@ -55,6 +56,7 @@ impl Plugin for GamePlugin {
             daynight::DayNightPlugin,
             lantern::LanternPlugin,
             reawaken::ReawakenPlugin,
+            wildlife::WildlifePlugin,
             hud::HudPlugin,
             menu::MenuPlugin,
         ));
