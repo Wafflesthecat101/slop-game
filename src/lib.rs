@@ -30,6 +30,7 @@ mod lantern;
 mod menu;
 mod player;
 mod reawaken;
+mod reveal;
 mod save;
 mod settings;
 mod states;
@@ -54,6 +55,7 @@ impl Plugin for GamePlugin {
             interact::InteractPlugin,
             daynight::DayNightPlugin,
             lantern::LanternPlugin,
+            reveal::RevealPlugin,
             reawaken::ReawakenPlugin,
             hud::HudPlugin,
             menu::MenuPlugin,
