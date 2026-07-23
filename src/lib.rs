@@ -28,6 +28,7 @@ mod hud;
 mod interact;
 mod lantern;
 mod menu;
+mod photo;
 mod player;
 mod reawaken;
 mod save;
@@ -57,6 +58,7 @@ impl Plugin for GamePlugin {
             reawaken::ReawakenPlugin,
             hud::HudPlugin,
             menu::MenuPlugin,
+            photo::PhotoPlugin,
         ));
 
         // Review-only: expose the Bevy Remote Protocol so a reviewer/tool can
