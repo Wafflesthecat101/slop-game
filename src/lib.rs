@@ -34,6 +34,7 @@ mod save;
 mod settings;
 mod states;
 mod terrain;
+mod water;
 mod wildlife;
 mod world;
 
@@ -49,6 +50,7 @@ impl Plugin for GamePlugin {
             settings::SettingsPlugin,
             save::SavePlugin,
             world::WorldPlugin,
+            water::WaterPlugin,
             player::PlayerPlugin,
             beacons::BeaconsPlugin,
             audio::AudioPlugin,
